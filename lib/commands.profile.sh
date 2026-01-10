@@ -6,30 +6,32 @@
 
 _cmd_profiles() {
     # Get current profiles
-    local current_profiles=($(get_current_profiles))
-    
+    local current_profiles=()
+    readarray -t current_profiles < <(get_current_profiles)
+
     # Show logo first
     logo_small
     printf '\n'
-    
+
     # Show commands at the top
     printf '%s\n' "Commands:"
     printf "  ${CYAN}claudebox add <profiles...>${NC}    - Add development profiles to your project\n"
     printf "  ${CYAN}claudebox remove <profiles...>${NC} - Remove profiles from your project\n"
     printf '\n'
-    
+
     # Show currently enabled profiles
     if [[ ${#current_profiles[@]} -gt 0 ]]; then
         cecho "Currently enabled:" "$YELLOW"
         printf "  %s\n" "${current_profiles[*]}"
         printf '\n'
     fi
-    
+
     # Show available profiles
     cecho "Available profiles:" "$CYAN"
     printf '\n'
-    for profile in $(get_all_profile_names | tr ' ' '\n' | sort); do
-        local desc=$(get_profile_description "$profile")
+    while IFS= read -r profile; do
+        local desc
+        desc=$(get_profile_description "$profile")
         local is_enabled=false
         # Check if profile is currently enabled
         for enabled in "${current_profiles[@]}"; do
@@ -45,7 +47,7 @@ _cmd_profiles() {
             printf "  "
         fi
         printf "%s\n" "$desc"
-    done
+    done < <(get_all_profile_names | tr ' ' '\n' | sort)
     printf '\n'
     exit 0
 }
@@ -58,7 +60,7 @@ _cmd_profile() {
     echo
     echo -e "  ${GREEN}profiles${NC}                 Show all available profiles"
     echo -e "  ${GREEN}add <names...>${NC}           Add development profiles"
-    echo -e "  ${GREEN}remove <names...>${NC}        Remove development profiles"  
+    echo -e "  ${GREEN}remove <names...>${NC}        Remove development profiles"
     echo -e "  ${GREEN}add status${NC}               Show current project's profiles"
     echo
     cecho "Examples:" "$YELLOW"
@@ -78,7 +80,7 @@ _cmd_add() {
 
     # Check for special subcommands
     case "${1:-}" in
-        status|--status|-s)
+        status | --status | -s)
             cecho "Project: $PROJECT_DIR" "$CYAN"
             echo
             if [[ -f "$profile_file" ]]; then
@@ -115,7 +117,7 @@ _cmd_add() {
             remaining=("$@")
             break
         fi
-        
+
         if profile_exists "$1"; then
             selected+=("$1")
             shift
@@ -141,7 +143,7 @@ _cmd_add() {
         cecho "All active profiles: ${all_profiles[*]}" "$GREEN"
     fi
     echo
-    
+
     # Check if any Python-related profiles were added
     local python_profiles_added=false
     for profile in "${selected[@]}"; do
@@ -150,16 +152,17 @@ _cmd_add() {
             break
         fi
     done
-    
+
     # If Python profiles were added, remove the pydev flag to trigger reinstall
     if [[ "$python_profiles_added" == "true" ]]; then
-        local parent_dir=$(get_parent_dir "$PROJECT_DIR")
+        local parent_dir
+        parent_dir=$(get_parent_dir "$PROJECT_DIR")
         if [[ -f "$parent_dir/.pydev_flag" ]]; then
             rm -f "$parent_dir/.pydev_flag"
             info "Python packages will be updated on next run"
         fi
     fi
-    
+
     # Only show rebuild message for non-Python profiles
     local needs_rebuild=false
     for profile in "${selected[@]}"; do
@@ -168,7 +171,7 @@ _cmd_add() {
             break
         fi
     done
-    
+
     if [[ "$needs_rebuild" == "true" ]]; then
         warn "The Docker image will be rebuilt with new profiles on next run."
     fi
@@ -213,7 +216,7 @@ _cmd_remove() {
         if [[ "$1" == -* ]]; then
             break
         fi
-        
+
         if profile_exists "$1"; then
             to_remove+=("$1")
             shift
@@ -243,7 +246,7 @@ _cmd_remove() {
         done
         [[ "$keep" == "true" ]] && new_profiles+=("$profile")
     done
-    
+
     # Check if any Python-related profiles remain
     local has_python_profiles=false
     for profile in "${new_profiles[@]}"; do
@@ -252,12 +255,12 @@ _cmd_remove() {
             break
         fi
     done
-    
+
     # If we removed Python profiles and no Python profiles remain, clean up Python flags
     if [[ "$python_profiles_removed" == "true" ]] && [[ "$has_python_profiles" == "false" ]]; then
         init_project_dir "$PROJECT_DIR"
         PROJECT_PARENT_DIR=$(get_parent_dir "$PROJECT_DIR")
-        
+
         # Remove Python flags and venv folder if they exist
         if [[ -f "$PROJECT_PARENT_DIR/.venv_flag" ]]; then
             rm -f "$PROJECT_PARENT_DIR/.venv_flag"
@@ -268,7 +271,7 @@ _cmd_remove() {
         if [[ -d "$PROJECT_PARENT_DIR/.venv" ]]; then
             rm -rf "$PROJECT_PARENT_DIR/.venv"
         fi
-        
+
         cecho "Cleaned up Python environment flags and venv folder" "$YELLOW"
     fi
 
@@ -279,7 +282,7 @@ _cmd_remove() {
             echo "$profile"
         done
         echo ""
-        
+
         # Preserve packages section if it exists
         if [[ -f "$profile_file" ]] && grep -q "^\[packages\]" "$profile_file"; then
             echo "[packages]"
@@ -287,7 +290,7 @@ _cmd_remove() {
                 echo "$line"
             done < <(read_profile_section "$profile_file" "packages")
         fi
-    } > "${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
+    } >"${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
 
     cecho "Profile: $PROJECT_DIR" "$CYAN"
     cecho "Removed profiles: ${to_remove[*]}" "$PURPLE"

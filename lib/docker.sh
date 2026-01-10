@@ -20,18 +20,18 @@ install_docker() {
     [[ -f /etc/os-release ]] && . /etc/os-release || error "Cannot detect OS"
 
     case "${ID:-}" in
-        ubuntu|debian)
+        ubuntu | debian)
             warn "Installing Docker requires sudo privileges..."
             sudo apt-get update
             sudo apt-get install -y ca-certificates curl gnupg lsb-release
             sudo mkdir -p /etc/apt/keyrings
             curl -fsSL "https://download.docker.com/linux/$ID/gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$ID $(lsb_release -cs) stable" | \
-                sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$ID $(lsb_release -cs) stable" |
+                sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
             sudo apt-get update
             sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
             ;;
-        fedora|rhel|centos)
+        fedora | rhel | centos)
             warn "Installing Docker requires sudo privileges..."
             sudo dnf -y install dnf-plugins-core
             sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
@@ -39,7 +39,7 @@ install_docker() {
             sudo systemctl start docker
             sudo systemctl enable docker
             ;;
-        arch|manjaro)
+        arch | manjaro)
             warn "Installing Docker requires sudo privileges..."
             sudo pacman -S --noconfirm docker
             sudo systemctl start docker
@@ -87,33 +87,33 @@ docker_exec_user() {
 # Note: Handles all mounting, environment setup, and security configuration
 run_claudebox_container() {
     local container_name="$1"
-    local run_mode="$2"  # "interactive", "detached", "pipe", or "attached"
+    local run_mode="$2" # "interactive", "detached", "pipe", or "attached"
     shift 2
     local container_args=("$@")
-    
+
     # Handle "attached" mode - start detached, wait, then attach
     if [[ "$run_mode" == "attached" ]]; then
         # Start detached
         run_claudebox_container "$container_name" "detached" "${container_args[@]}" >/dev/null
-        
+
         # Show progress while container initializes
         fillbar
-        
+
         # Wait for container to be ready
-        while ! docker exec "$container_name" true ; do
+        while ! docker exec "$container_name" true; do
             sleep 0.1
         done
-        
+
         fillbar stop
-        
+
         # Attach to ready container
         docker attach "$container_name"
-        
+
         return
     fi
-    
+
     local docker_args=()
-    
+
     # Set run mode
     case "$run_mode" in
         "interactive")
@@ -141,11 +141,11 @@ run_claudebox_container() {
             docker_args+=("--rm" "--init")
             ;;
     esac
-    
+
     # Always check for tmux socket and mount if available (or create one)
     local tmux_socket=""
     local tmux_socket_dir=""
-    
+
     # If TMUX env var is set, extract socket path from it
     if [[ -n "${TMUX:-}" ]]; then
         # TMUX format is typically: /tmp/tmux-1000/default,23456,0
@@ -153,9 +153,10 @@ run_claudebox_container() {
         tmux_socket_dir=$(dirname "$tmux_socket")
     else
         # Look for existing tmux socket or determine where to create one
-        local uid=$(id -u)
+        local uid
+        uid=$(id -u)
         local default_socket_dir="/tmp/tmux-$uid"
-        
+
         # Check common locations for existing sockets
         for socket_dir in "$default_socket_dir" "/var/run/tmux-$uid" "$HOME/.tmux"; do
             if [[ -d "$socket_dir" ]]; then
@@ -170,7 +171,7 @@ run_claudebox_container() {
                 [[ -n "$tmux_socket" ]] && break
             fi
         done
-        
+
         # If no socket found, ensure we have a socket directory for potential tmux usage
         if [[ -z "$tmux_socket" ]]; then
             tmux_socket_dir="$default_socket_dir"
@@ -179,7 +180,7 @@ run_claudebox_container() {
                 mkdir -p "$tmux_socket_dir"
                 chmod 700 "$tmux_socket_dir"
             fi
-            
+
             # Check if tmux is installed and create a detached session if so
             if command -v tmux >/dev/null 2>&1; then
                 # Create a minimal tmux server without attaching
@@ -194,7 +195,7 @@ run_claudebox_container() {
             fi
         fi
     fi
-    
+
     # Mount the socket and directory if we have them
     if [[ -n "$tmux_socket_dir" ]] && [[ -d "$tmux_socket_dir" ]]; then
         # Always mount the socket directory
@@ -202,43 +203,43 @@ run_claudebox_container() {
         if [[ "$VERBOSE" == "true" ]]; then
             echo "[DEBUG] Mounting tmux socket directory: $tmux_socket_dir" >&2
         fi
-        
+
         # Mount specific socket if it exists
         if [[ -n "$tmux_socket" ]] && [[ -S "$tmux_socket" ]]; then
             if [[ "$VERBOSE" == "true" ]]; then
                 echo "[DEBUG] Tmux socket found at: $tmux_socket" >&2
             fi
         fi
-        
+
         # Pass TMUX env var if available
         [[ -n "${TMUX:-}" ]] && docker_args+=(-e "TMUX=$TMUX")
     fi
-    
+
     # Standard configuration for ALL containers
     docker_args+=(
         -w /workspace
         -v "$PROJECT_DIR":/workspace
-        -v "$PROJECT_PARENT_DIR":/home/$DOCKER_USER/.claudebox
+        -v "$PROJECT_PARENT_DIR":"/home/$DOCKER_USER/.claudebox"
     )
-    
+
     # Ensure .claude directory exists
     if [[ ! -d "$PROJECT_SLOT_DIR/.claude" ]]; then
         mkdir -p "$PROJECT_SLOT_DIR/.claude"
     fi
-    
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":/home/$DOCKER_USER/.claude)
-    
+
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":"/home/$DOCKER_USER/.claude")
+
     # Mount .claude.json only if it already exists (from previous session)
     if [[ -f "$PROJECT_SLOT_DIR/.claude.json" ]]; then
-        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":/home/$DOCKER_USER/.claude.json)
+        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":"/home/$DOCKER_USER/.claude.json")
     fi
-    
+
     # Mount .config directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":/home/$DOCKER_USER/.config)
-    
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":"/home/$DOCKER_USER/.config")
+
     # Mount .cache directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":/home/$DOCKER_USER/.cache)
-    
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":"/home/$DOCKER_USER/.cache")
+
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
 
@@ -300,7 +301,7 @@ run_claudebox_container() {
             echo "[DEBUG] Mounting .env file from project directory" >&2
         fi
     fi
-    
+
     # Parse and prepare MCP servers for native --mcp-config support
     # Check for jq dependency first - fail fast with clear error message
     if ! command -v jq >/dev/null 2>&1; then
@@ -311,25 +312,26 @@ run_claudebox_container() {
         printf "  RHEL/CentOS: yum install jq\n" >&2
         exit 1
     fi
-    
+
     # Helper function to create and merge MCP config files
     create_mcp_config_file() {
         local config_file="$1"
         local temp_file="$2"
-        
+
         # Create temporary file with unique name
-        local mcp_file=$(mktemp /tmp/claudebox-mcp-$(date +%s)-$$.json 2>/dev/null || mktemp)
+        local mcp_file
+        mcp_file=$(mktemp /tmp/claudebox-mcp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
         mcp_temp_files+=("$mcp_file")
-        
+
         # Extract mcpServers if they exist
         if [[ -f "$config_file" ]] && jq -e '.mcpServers' "$config_file" >/dev/null 2>&1; then
             if [[ -f "$temp_file" ]]; then
                 # Merge with existing temp file
                 jq -s '.[0].mcpServers * .[1].mcpServers | {mcpServers: .}' \
-                    "$temp_file" "$config_file" > "$mcp_file" 2>/dev/null
+                    "$temp_file" "$config_file" >"$mcp_file" 2>/dev/null
             else
                 # Create new config file
-                jq '{mcpServers: .mcpServers}' "$config_file" > "$mcp_file" 2>/dev/null
+                jq '{mcpServers: .mcpServers}' "$config_file" >"$mcp_file" 2>/dev/null
             fi
             printf "%s" "$mcp_file"
         else
@@ -337,13 +339,13 @@ run_claudebox_container() {
             printf ""
         fi
     }
-    
+
     local user_mcp_file=""
     local project_mcp_file=""
-    
+
     # Track all temporary MCP files for cleanup
     declare -a mcp_temp_files=()
-    
+
     # Set up cleanup trap for temporary MCP config files
     cleanup_mcp_files() {
         local file
@@ -360,13 +362,14 @@ run_claudebox_container() {
         fi
     }
     trap cleanup_mcp_files EXIT
-    
+
     # Create user MCP config file from ~/.claude.json
     if [[ -f "$HOME/.claude.json" ]]; then
         user_mcp_file=$(create_mcp_config_file "$HOME/.claude.json" "")
-        
+
         if [[ -n "$user_mcp_file" ]]; then
-            local user_count=$(jq '.mcpServers | length' "$user_mcp_file" 2>/dev/null || echo "0")
+            local user_count
+            user_count=$(jq '.mcpServers | length' "$user_mcp_file" 2>/dev/null || echo "0")
             if [[ "$user_count" -gt 0 ]]; then
                 if [[ "$VERBOSE" == "true" ]]; then
                     printf "Found %s user MCP servers\n" "$user_count" >&2
@@ -381,13 +384,14 @@ run_claudebox_container() {
             fi
         fi
     fi
-    
+
     # Create project MCP config file by merging project configs
     # Start with empty config file for merging
-    local temp_project_file=$(mktemp /tmp/claudebox-project-temp-$(date +%s)-$$.json 2>/dev/null || mktemp)
+    local temp_project_file
+    temp_project_file=$(mktemp /tmp/claudebox-project-temp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
     mcp_temp_files+=("$temp_project_file")
-    echo '{"mcpServers":{}}' > "$temp_project_file"
-    
+    echo '{"mcpServers":{}}' >"$temp_project_file"
+
     # Merge shared project settings first
     local merged_file=""
     if [[ -f "$PROJECT_DIR/.claude/settings.json" ]]; then
@@ -396,7 +400,7 @@ run_claudebox_container() {
             mv "$merged_file" "$temp_project_file"
         fi
     fi
-    
+
     # Merge local project settings (highest priority)
     if [[ -f "$PROJECT_DIR/.claude/settings.local.json" ]]; then
         merged_file=$(create_mcp_config_file "$PROJECT_DIR/.claude/settings.local.json" "$temp_project_file")
@@ -404,9 +408,10 @@ run_claudebox_container() {
             mv "$merged_file" "$temp_project_file"
         fi
     fi
-    
+
     # Check if we have any project servers
-    local project_count=$(jq '.mcpServers | length' "$temp_project_file" 2>/dev/null || echo "0")
+    local project_count
+    project_count=$(jq '.mcpServers | length' "$temp_project_file" 2>/dev/null || echo "0")
     if [[ "$project_count" -gt 0 ]]; then
         project_mcp_file="$temp_project_file"
         if [[ "$VERBOSE" == "true" ]]; then
@@ -420,18 +425,22 @@ run_claudebox_container() {
         rm -f "$temp_project_file"
         project_mcp_file=""
     fi
-    
-    
+
     # Add environment variables
-    local project_name=$(basename "$PROJECT_DIR")
-    local slot_name=$(basename "$PROJECT_SLOT_DIR")
-    
+    local project_name
+    project_name=$(basename "$PROJECT_DIR")
+    local slot_name
+    slot_name=$(basename "$PROJECT_SLOT_DIR")
+
     # Calculate slot index for hostname
-    local slot_index=1  # default if we can't determine
+    # shellcheck disable=SC2034 # default - retained for future hostname customization
+    local slot_index=1
+    # ^ reassigned below if we can determine actual index
     if [[ -n "$PROJECT_PARENT_DIR" ]] && [[ -n "$slot_name" ]]; then
+        # shellcheck disable=SC2034 # Retained for future hostname customization
         slot_index=$(get_slot_index "$slot_name" "$PROJECT_PARENT_DIR" 2>/dev/null || echo "1")
     fi
-    
+
     docker_args+=(
         -e "NODE_ENV=${NODE_ENV:-production}"
         -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}"
@@ -446,29 +455,29 @@ run_claudebox_container() {
         --cap-add NET_RAW
         "$IMAGE_NAME"
     )
-    
+
     # Add any additional arguments
     if [[ ${#container_args[@]} -gt 0 ]]; then
         docker_args+=("${container_args[@]}")
     fi
-    
+
     # Run the container
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[DEBUG] Docker run command: docker run ${docker_args[*]}" >&2
     fi
     docker run "${docker_args[@]}"
     local exit_code=$?
-    
-    return $exit_code
+
+    return "$exit_code"
 }
 
 check_container_exists() {
     local container_name="$1"
-    
+
     # Check if container exists (running or stopped)
-    if docker ps -a --filter "name=^${container_name}$" --format "{{.Names}}"  | grep -q "^${container_name}$"; then
+    if docker ps -a --filter "name=^${container_name}$" --format "{{.Names}}" | grep -q "^${container_name}$"; then
         # Check if it's running
-        if docker ps --filter "name=^${container_name}$" --format "{{.Names}}"  | grep -q "^${container_name}$"; then
+        if docker ps --filter "name=^${container_name}$" --format "{{.Names}}" | grep -q "^${container_name}$"; then
             echo "running"
         else
             echo "stopped"
@@ -481,17 +490,17 @@ check_container_exists() {
 run_docker_build() {
     info "Running docker build..."
     export DOCKER_BUILDKIT=1
-    
+
     # Check if we need to force rebuild due to template changes
     local no_cache_flag=""
     if [[ "${CLAUDEBOX_FORCE_NO_CACHE:-false}" == "true" ]]; then
         no_cache_flag="--no-cache"
         info "Forcing full rebuild (templates changed)"
     fi
-    
+
     docker build \
-        $no_cache_flag \
-        --progress=${BUILDKIT_PROGRESS:-auto} \
+        "$no_cache_flag" \
+        --progress="${BUILDKIT_PROGRESS:-auto}" \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
         --build-arg USER_ID="$USER_ID" \
         --build-arg GROUP_ID="$GROUP_ID" \

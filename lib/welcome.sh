@@ -12,13 +12,13 @@ show_welcome_screen() {
     echo -e "${CYAN}║                                                                               ║${NC}"
     echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo
-    
+
     echo -e "${WHITE}  🎉 Welcome to ClaudeBox!${NC}"
     echo
     echo -e "${DIM}  ClaudeBox provides a secure, containerized environment for running Claude CLI${NC}"
     echo -e "${DIM}  with full development tooling and network isolation.${NC}"
     echo
-    
+
     echo -e "${WHITE}  ✨ KEY FEATURES${NC}"
     echo -e "${DIM}  ────────────────────────────────────────────────────────────────────────────${NC}"
     echo
@@ -28,7 +28,7 @@ show_welcome_screen() {
     echo -e "     ${GREEN}•${NC} ${WHITE}Multi-Slot System${NC}        Run multiple Claude instances per project"
     echo -e "     ${GREEN}•${NC} ${WHITE}Persistent Storage${NC}       Your work is saved between sessions"
     echo
-    
+
     echo -e "${WHITE}  🚀 QUICK START${NC}"
     echo -e "${DIM}  ────────────────────────────────────────────────────────────────────────────${NC}"
     echo
@@ -36,7 +36,7 @@ show_welcome_screen() {
     echo -e "     ${WHITE}2.${NC} Create an authenticated container slot"
     echo -e "     ${WHITE}3.${NC} Start using Claude CLI in a secure environment"
     echo
-    
+
     echo -e "${DIM}  ────────────────────────────────────────────────────────────────────────────${NC}"
     echo -e "${YELLOW}  Press Enter to continue...${NC}"
     read -r
