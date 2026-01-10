@@ -405,8 +405,8 @@ Usage:
     echo
     cecho "Default mounts (always included):" "$CYAN"
     echo "  \$PROJECT_DIR -> /workspace (rw)"
+    echo "  ~/.claudebox -> /home/claude/.claudebox (ro)"
     echo "  ~/.ssh -> /home/claude/.ssh (ro)"
-    echo "  ~/.claude -> /home/claude/.claude (rw)"
     echo
     cecho "Usage:" "$YELLOW"
     echo "  claudebox mount add <host>:<container>:<mode>   Add a mount"
