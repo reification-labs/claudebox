@@ -497,24 +497,27 @@ run_docker_build() {
     info "Running docker build..."
     export DOCKER_BUILDKIT=1
 
-    # Check if we need to force rebuild due to template changes
-    local no_cache_flag=""
+    # Build the command array to avoid empty argument issues
+    local -a build_args=(
+        --progress="${BUILDKIT_PROGRESS:-auto}"
+        --build-arg BUILDKIT_INLINE_CACHE=1
+        --build-arg USER_ID="$USER_ID"
+        --build-arg GROUP_ID="$GROUP_ID"
+        --build-arg USERNAME="$DOCKER_USER"
+        --build-arg NODE_VERSION="$NODE_VERSION"
+        --build-arg DELTA_VERSION="$DELTA_VERSION"
+        --build-arg REBUILD_TIMESTAMP="${CLAUDEBOX_REBUILD_TIMESTAMP:-}"
+        -f "$1"
+        -t "$IMAGE_NAME"
+    )
+
+    # Add --no-cache only if force rebuild is requested
     if [[ "${CLAUDEBOX_FORCE_NO_CACHE:-false}" == "true" ]]; then
-        no_cache_flag="--no-cache"
         info "Forcing full rebuild (templates changed)"
+        build_args+=(--no-cache)
     fi
 
-    docker build \
-        "$no_cache_flag" \
-        --progress="${BUILDKIT_PROGRESS:-auto}" \
-        --build-arg BUILDKIT_INLINE_CACHE=1 \
-        --build-arg USER_ID="$USER_ID" \
-        --build-arg GROUP_ID="$GROUP_ID" \
-        --build-arg USERNAME="$DOCKER_USER" \
-        --build-arg NODE_VERSION="$NODE_VERSION" \
-        --build-arg DELTA_VERSION="$DELTA_VERSION" \
-        --build-arg REBUILD_TIMESTAMP="${CLAUDEBOX_REBUILD_TIMESTAMP:-}" \
-        -f "$1" -t "$IMAGE_NAME" "$2" || error "Docker build failed"
+    docker build "${build_args[@]}" "$2" || error "Docker build failed"
 }
 
 export -f check_docker install_docker configure_docker_nonroot docker_exec_root docker_exec_user run_claudebox_container check_container_exists run_docker_build
