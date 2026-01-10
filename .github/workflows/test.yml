@@ -39,13 +39,13 @@ jobs:
         sudo apt-get install -y shellcheck
         
     - name: Run ShellCheck on main script
-      run: shellcheck -x -S error main.sh
-
+      run: shellcheck -x main.sh
+      
     - name: Run ShellCheck on library files
-      run: shellcheck -x -S error lib/*.sh
-
+      run: shellcheck -x lib/*.sh
+      
     - name: Run ShellCheck on command modules
-      run: shellcheck -x -S error lib/commands/*.sh
+      run: shellcheck -x lib/commands/*.sh
       
   build:
     runs-on: ubuntu-latest
