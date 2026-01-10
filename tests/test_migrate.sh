@@ -133,6 +133,20 @@ test_list_old_slots_pattern() {
 run_test "list_old_slots() finds only 8-char hex dirs" test_list_old_slots_pattern
 
 echo
+echo "3. Archive naming"
+echo "-----------------"
+
+# Test: archive directory uses timestamp, not just date
+# This prevents data loss if migration runs twice on same day
+test_archive_has_timestamp() {
+    # Archive dir should include time (HHMMSS), not just date
+    # Pattern: archive-YYYYMMDD_HHMMSS or similar with time component
+    grep -q 'archive-.*%H%M%S\|archive-.*_[0-9]\{6\}' "$CLAUDEBOX_ROOT/lib/migrate.sh" || \
+    grep -qE 'archive-\$\(date \+%Y%m%d_%H%M%S\)' "$CLAUDEBOX_ROOT/lib/migrate.sh"
+}
+run_test "Archive directory includes timestamp (prevents same-day collision)" test_archive_has_timestamp
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

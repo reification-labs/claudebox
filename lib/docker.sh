@@ -227,9 +227,10 @@ run_claudebox_container() {
     )
 
     # Get profile directory and ensure it exists with all required subdirectories
+    # Use PROFILE_NAME if set (from _profile_run), otherwise default
     local profile_dir
-    profile_dir=$(get_profile_dir)
-    init_profile_dir
+    profile_dir=$(get_profile_dir "${PROFILE_NAME:-default}")
+    init_profile_dir "${PROFILE_NAME:-default}"
 
     # Mount profile directories for Claude state, config, and cache
     docker_args+=(-v "$profile_dir/.claude":"/home/$DOCKER_USER/.claude")

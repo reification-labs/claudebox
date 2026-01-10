@@ -108,7 +108,7 @@ migrate_project() {
 archive_old_structure() {
     local old_projects_dir="$HOME/.claudebox/projects"
     local archive_dir
-    archive_dir="$HOME/.claudebox/archive-$(date +%Y%m%d)"
+    archive_dir="$HOME/.claudebox/archive-$(date +%Y%m%d_%H%M%S)"
 
     if [[ ! -d "$old_projects_dir" ]]; then
         return 0
@@ -142,7 +142,7 @@ prompt_migration() {
     echo "This migration will:"
     echo "  1. Copy your existing slots to each project's .claudebox/profiles/"
     echo "  2. Rename slot-1 to 'default' in each project"
-    echo "  3. Archive the old structure to ~/.claudebox/archive-YYYYMMDD/"
+    echo "  3. Archive the old structure to ~/.claudebox/archive-YYYYMMDD_HHMMSS/"
     echo
 
     # List projects to migrate

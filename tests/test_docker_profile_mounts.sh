@@ -130,6 +130,19 @@ test_named_profile_mount_paths() {
 run_test "Named profiles have isolated mount paths" test_named_profile_mount_paths
 
 echo
+echo "3. docker.sh respects PROFILE_NAME"
+echo "-----------------------------------"
+
+# Test: docker.sh passes PROFILE_NAME to get_profile_dir
+# This ensures non-default profiles get their correct directory
+test_docker_uses_profile_name() {
+    # docker.sh should call get_profile_dir with PROFILE_NAME, not without args
+    # Pattern: get_profile_dir "${PROFILE_NAME:-default}" or similar
+    grep -q 'get_profile_dir.*PROFILE_NAME' "$CLAUDEBOX_ROOT/lib/docker.sh"
+}
+run_test "docker.sh passes PROFILE_NAME to get_profile_dir" test_docker_uses_profile_name
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="
