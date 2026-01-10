@@ -291,8 +291,8 @@ Got: $mount_spec"
 HEADER
             fi
 
-            # Check for duplicate container path
-            if grep -v '^#' "$mounts_file" 2>/dev/null | grep -q ":${container_path}:"; then
+            # Check for duplicate container path (exact field match, not substring)
+            if awk -F: -v cp="$container_path" '!/^#/ && $2 == cp { found=1; exit 0 } END { exit (found ? 0 : 1) }' "$mounts_file" 2>/dev/null; then
                 error "A mount already exists for container path: $container_path
 Use 'claudebox mount remove $container_path' first"
             fi
