@@ -23,8 +23,9 @@ _cmd_projects() {
 }
 
 _cmd_allowlist() {
-    # Allowlist is stored in parent directory, not slot directory
-    local allowlist_file="$PROJECT_PARENT_DIR/allowlist"
+    # SECURITY: Allowlist is stored in global config (~/.claudebox), NOT project directory
+    # This prevents sandbox escape via /workspace/.claudebox modification
+    local allowlist_file="$HOME/.claudebox/allowlist"
 
     cecho "🔒 ClaudeBox Firewall Allowlist" "$CYAN"
     echo
@@ -198,7 +199,7 @@ _cmd_info() {
             if [[ -n "$container_stats" ]]; then
                 echo "               - $container_stats"
             fi
-        done <<< "$running_containers"
+        done <<<"$running_containers"
     else
         echo "   Containers: None running"
     fi
@@ -238,8 +239,9 @@ _cmd_info() {
 }
 
 _cmd_mount() {
-    # Mounts file is stored in parent directory, not slot directory
-    local mounts_file="$PROJECT_PARENT_DIR/mounts"
+    # SECURITY: Mounts file is stored in global config (~/.claudebox), NOT project directory
+    # This prevents sandbox escape via /workspace/.claudebox modification
+    local mounts_file="$HOME/.claudebox/mounts"
     local subcommand="${1:-}"
     shift || true
 
@@ -264,7 +266,7 @@ Note: Colons (:) in paths are not supported (used as field separator)"
             fi
 
             # Validate exactly 2 colons (host:container:mode)
-            local colon_count="${mount_spec//[^:]}"
+            local colon_count="${mount_spec//[^:]/}"
             if [[ ${#colon_count} -ne 2 ]]; then
                 error "Invalid mount format. Expected exactly 2 colons: <host_path>:<container_path>:<mode>
 Got: $mount_spec
@@ -275,7 +277,7 @@ Windows users: Use WSL2 paths instead (e.g., /mnt/c/Users/... instead of C:\\Use
 
             # Validate format: host:container:mode
             local host_path container_path mode
-            IFS=':' read -r host_path container_path mode <<< "$mount_spec"
+            IFS=':' read -r host_path container_path mode <<<"$mount_spec"
 
             if [[ -z "$host_path" ]] || [[ -z "$container_path" ]] || [[ -z "$mode" ]]; then
                 error "Invalid mount format. Expected: <host_path>:<container_path>:<mode>
@@ -306,7 +308,7 @@ Got: $mount_spec"
             # Create mounts file if needed
             if [[ ! -f "$mounts_file" ]]; then
                 mkdir -p "$(dirname "$mounts_file")"
-                cat > "$mounts_file" << 'HEADER'
+                cat >"$mounts_file" <<'HEADER'
 # ClaudeBox Custom Volume Mounts
 # Format: host_path:container_path:mode
 # Mode: ro (read-only) or rw (read-write)
@@ -324,7 +326,7 @@ Use 'claudebox mount remove $container_path' first"
             fi
 
             # Add the mount
-            echo "${host_path}:${container_path}:${mode}" >> "$mounts_file"
+            echo "${host_path}:${container_path}:${mode}" >>"$mounts_file"
             success "Added mount: $host_path -> $container_path ($mode)"
             echo
             cecho "Note:" "$WHITE"
@@ -349,19 +351,19 @@ Example: claudebox mount remove /workspace/.vault/name"
             temp_file=$(mktemp)
             while IFS= read -r line; do
                 if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
-                    echo "$line" >> "$temp_file"
+                    echo "$line" >>"$temp_file"
                 else
                     # Parse line and check container_path (field 2) exactly
                     local line_container_path
-                    IFS=':' read -r _ line_container_path _ <<< "$line"
+                    IFS=':' read -r _ line_container_path _ <<<"$line"
                     if [[ "$line_container_path" == "$target" ]]; then
                         found=true
                         info "Removing: $line"
                     else
-                        echo "$line" >> "$temp_file"
+                        echo "$line" >>"$temp_file"
                     fi
                 fi
-            done < "$mounts_file"
+            done <"$mounts_file"
 
             if [[ "$found" == "true" ]]; then
                 mv "$temp_file" "$mounts_file"
@@ -406,7 +408,7 @@ Usage:
         while IFS= read -r line; do
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^#.* ]]; then
                 local host_path container_path mode
-                IFS=':' read -r host_path container_path mode <<< "$line"
+                IFS=':' read -r host_path container_path mode <<<"$line"
 
                 # Check if host path exists (expand tilde first)
                 local expanded_host_path="${host_path/#\~/$HOME}"
@@ -420,7 +422,7 @@ Usage:
                 printf "  ${status_color}${status_icon}${NC} %s -> %s (%s)\n" "$host_path" "$container_path" "$mode"
                 ((mount_count++)) || true
             fi
-        done < "$mounts_file"
+        done <"$mounts_file"
 
         if [[ $mount_count -eq 0 ]]; then
             echo "  (none configured)"

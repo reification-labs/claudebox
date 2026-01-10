@@ -216,12 +216,14 @@ run_claudebox_container() {
     fi
 
     # Standard configuration for ALL containers
-    # SECURITY: Mount project parent as READ-ONLY to prevent modification of
+    # SECURITY: Mount GLOBAL config (~/.claudebox) as READ-ONLY to prevent modification of
     # mounts/allowlist files from inside container (sandbox escape prevention)
+    # CRITICAL: Global config must be OUTSIDE /workspace to prevent bypass via /workspace/.claudebox
+    local global_config_dir="$HOME/.claudebox"
     docker_args+=(
         -w /workspace
         -v "$PROJECT_DIR":/workspace
-        -v "$PROJECT_PARENT_DIR":"/home/$DOCKER_USER/.claudebox:ro"
+        -v "$global_config_dir":"/home/$DOCKER_USER/.claudebox:ro"
     )
 
     # Get profile directory and ensure it exists with all required subdirectories
@@ -246,8 +248,8 @@ run_claudebox_container() {
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
 
-    # Mount custom volumes from mounts file
-    local mounts_file="$PROJECT_PARENT_DIR/mounts"
+    # Mount custom volumes from mounts file (ALWAYS from global config for security)
+    local mounts_file="$global_config_dir/mounts"
     if [[ -f "$mounts_file" ]]; then
         while IFS= read -r line; do
             # Skip comments and empty lines
