@@ -218,7 +218,7 @@ run_claudebox_container() {
     docker_args+=(
         -w /workspace
         -v "$PROJECT_DIR":/workspace
-        -v "$PROJECT_PARENT_DIR":/home/$DOCKER_USER/.claudebox
+        -v "$PROJECT_PARENT_DIR":/home/$DOCKER_USER/.claudebox:ro
     )
     
     # Ensure .claude directory exists
