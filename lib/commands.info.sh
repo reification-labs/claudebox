@@ -244,7 +244,23 @@ Examples:
   claudebox mount add ~/docs:/workspace/docs:ro
   claudebox mount add /tmp/scratch:/workspace/scratch:rw
 
-Mode must be 'ro' (read-only) or 'rw' (read-write)"
+Mode must be 'ro' (read-only) or 'rw' (read-write)
+Note: Colons (:) in paths are not supported (used as field separator)"
+            fi
+
+            # Validate no embedded newlines (would corrupt mounts file)
+            if [[ "$mount_spec" == *$'\n'* ]]; then
+                error "Invalid mount specification: must not contain newline characters"
+            fi
+
+            # Validate exactly 2 colons (host:container:mode)
+            local colon_count="${mount_spec//[^:]}"
+            if [[ ${#colon_count} -ne 2 ]]; then
+                error "Invalid mount format. Expected exactly 2 colons: <host_path>:<container_path>:<mode>
+Got: $mount_spec
+
+Colons (:) are reserved as field separators and cannot appear inside paths.
+Windows users: Use WSL2 paths instead (e.g., /mnt/c/Users/... instead of C:\\Users\\...)"
             fi
 
             # Validate format: host:container:mode
