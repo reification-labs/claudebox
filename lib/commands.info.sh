@@ -345,7 +345,8 @@ Example: claudebox mount remove /workspace/.vault/name"
 
             # Find and remove the mount (exact field match, not substring)
             local found=false
-            local temp_file=$(mktemp)
+            local temp_file
+            temp_file=$(mktemp)
             while IFS= read -r line; do
                 if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
                     echo "$line" >> "$temp_file"
