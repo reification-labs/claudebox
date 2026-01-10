@@ -246,6 +246,10 @@ run_claudebox_container() {
     # Mount .cache directory
     docker_args+=(-v "$profile_dir/.cache":"/home/$DOCKER_USER/.cache")
 
+    # Mount .venv directory to user home (NOT inside .claudebox which is read-only)
+    # This allows Python venv creation while keeping global config read-only for security
+    docker_args+=(-v "$profile_dir/.venv":"/home/$DOCKER_USER/.venv")
+
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
 

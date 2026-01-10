@@ -63,9 +63,11 @@ fi
 if [ "${CLAUDEBOX_PROJECT_NAME:-}" != "" ]; then
     CLAUDEBOX_DIR="/home/DOCKERUSER/.claudebox"
     CONFIG_FILE="$CLAUDEBOX_DIR/profiles.ini"
-    VENV_DIR="$CLAUDEBOX_DIR/.venv"
-    VENV_FLAG="$CLAUDEBOX_DIR/.venv_flag"
-    PYDEV_FLAG="$CLAUDEBOX_DIR/.pydev_flag"
+    # Venv is mounted at ~/.venv (not inside .claudebox which is read-only)
+    VENV_DIR="/home/DOCKERUSER/.venv"
+    # Put flags inside .venv directory (which is mounted writable from profile)
+    VENV_FLAG="$VENV_DIR/.ready"
+    PYDEV_FLAG="$VENV_DIR/.pydev_ready"
 
     # Check if we need to set up the core Python environment
     if command -v uv >/dev/null 2>&1; then
@@ -91,7 +93,7 @@ if [ "${CLAUDEBOX_PROJECT_NAME:-}" != "" ]; then
                     PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv venv --python-preference managed --clear "$VENV_DIR" || true
 
                     # Remove lock and create flag to indicate completion
-                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock"
+                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock" 2>/dev/null || true
                     runuser -u DOCKERUSER -- touch "$VENV_FLAG"
                 else
                     # Someone else is fixing it, wait for completion
@@ -114,7 +116,7 @@ if [ "${CLAUDEBOX_PROJECT_NAME:-}" != "" ]; then
                     fi
 
                     # Remove lock and create flag to indicate completion
-                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock"
+                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock" 2>/dev/null || true
                     runuser -u DOCKERUSER -- touch "$VENV_FLAG"
                 else
                     # Someone else is creating it, wait for completion flag
@@ -234,9 +236,9 @@ if [[ "${SHELL_MODE:-false}" == "true" ]]; then
         cat >/tmp/tmux-init.sh <<'EOF'
 #!/bin/bash
 export PATH="/home/DOCKERUSER/.local/bin:$PATH"
-if [ -d /home/DOCKERUSER/.claudebox/.venv ]; then
-    export PATH="/home/DOCKERUSER/.claudebox/.venv/bin:$PATH"
-    export VIRTUAL_ENV="/home/DOCKERUSER/.claudebox/.venv"
+if [ -d /home/DOCKERUSER/.venv ]; then
+    export PATH="/home/DOCKERUSER/.venv/bin:$PATH"
+    export VIRTUAL_ENV="/home/DOCKERUSER/.venv"
 fi
 source /home/DOCKERUSER/.claudebox/common.sh 2>/dev/null
 logo_header 2>/dev/null
@@ -247,7 +249,7 @@ EOF
         exec runuser -u DOCKERUSER -- bash -c "source /home/DOCKERUSER/.nvm/nvm.sh && cd /workspace && exec tmux new-session /tmp/tmux-init.sh"
     else
         # For non-tmux, show logo before starting shell
-        exec runuser -u DOCKERUSER -- bash -c "source /home/DOCKERUSER/.nvm/nvm.sh && export PATH=\"/home/DOCKERUSER/.local/bin:\$PATH\" && [ -d /home/DOCKERUSER/.claudebox/.venv ] && export PATH=\"/home/DOCKERUSER/.claudebox/.venv/bin:\$PATH\" && export VIRTUAL_ENV=\"/home/DOCKERUSER/.claudebox/.venv\"; cd /workspace && source /home/DOCKERUSER/.claudebox/common.sh 2>/dev/null && logo_header 2>/dev/null; exec /bin/zsh"
+        exec runuser -u DOCKERUSER -- bash -c "source /home/DOCKERUSER/.nvm/nvm.sh && export PATH=\"/home/DOCKERUSER/.local/bin:\$PATH\" && [ -d /home/DOCKERUSER/.venv ] && export PATH=\"/home/DOCKERUSER/.venv/bin:\$PATH\" && export VIRTUAL_ENV=\"/home/DOCKERUSER/.venv\"; cd /workspace && source /home/DOCKERUSER/.claudebox/common.sh 2>/dev/null && logo_header 2>/dev/null; exec /bin/zsh"
     fi
 else
     # Claude mode - handle wrapper logic directly here
@@ -306,8 +308,8 @@ else
             export PATH="$HOME/.local/bin:$PATH"
             
             # Activate Python venv if it exists
-            if [ -f "$HOME/.claudebox/.venv/bin/activate" ]; then
-                source "$HOME/.claudebox/.venv/bin/activate"
+            if [ -f "$HOME/.venv/bin/activate" ]; then
+                source "$HOME/.venv/bin/activate"
             fi
             
             # Create symlink from ~/.claude/commands to ~/.claudebox/commands
@@ -382,8 +384,9 @@ else
             fi
             
             # After claude exits, copy .claude.json if it was created
-            if [[ -f "$HOME/.claude.json" ]] && [[ ! -f "$HOME/.claudebox/${CLAUDEBOX_SLOT_NAME}/.claude.json" ]]; then
-                cp "$HOME/.claude.json" "$HOME/.claudebox/${CLAUDEBOX_SLOT_NAME}/.claude.json"
+            # Use /workspace/.claudebox/profiles/ which is writable (not ~/.claudebox which is read-only)
+            if [[ -f "$HOME/.claude.json" ]] && [[ ! -f "/workspace/.claudebox/profiles/${CLAUDEBOX_SLOT_NAME}/.claude.json" ]]; then
+                cp "$HOME/.claude.json" "/workspace/.claudebox/profiles/${CLAUDEBOX_SLOT_NAME}/.claude.json"
             fi
         ' -- "$@"
     fi

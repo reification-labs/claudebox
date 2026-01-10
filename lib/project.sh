@@ -683,6 +683,7 @@ init_profile_dir() {
     mkdir -p "$profile_dir/.claude"
     mkdir -p "$profile_dir/.config"
     mkdir -p "$profile_dir/.cache"
+    mkdir -p "$profile_dir/.venv"
 }
 
 # Export all functions
