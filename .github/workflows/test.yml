@@ -2,7 +2,7 @@ name: Test ClaudeBox
 
 on:
   push:
-    branches: [ main, refactor, feature/* ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
