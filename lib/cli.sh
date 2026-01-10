@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034,SC2155  # Exported vars, readonly assignments
 # Unified CLI parser for ClaudeBox
 # Implements the four-bucket architecture for clean, predictable CLI handling
 

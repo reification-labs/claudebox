@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034,SC2155,SC2329,SC1091  # Exported vars, readonly, indirect calls, dynamic sources
 # Functions for managing Docker containers, images, and runtime.
 
 # Docker checks

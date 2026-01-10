@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034,SC2155  # Exported vars, readonly assignments
 # Info Commands - Information display
 # ============================================================================
 # Commands: info, projects, allowlist

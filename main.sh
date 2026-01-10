@@ -4,9 +4,6 @@
 #
 #  Clean CLI implementation following the four-bucket architecture
 # ==============================================================================
-# shellcheck disable=SC2034  # Variables exported for use in sourced files
-# shellcheck disable=SC2155  # readonly can't separate declaration/assignment
-# shellcheck disable=SC2154  # Variables assigned in trap context
 
 # Version
 readonly CLAUDEBOX_VERSION="2.0.0"
