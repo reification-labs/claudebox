@@ -29,7 +29,7 @@ jobs:
           export HOME="$TEST_HOME"
           echo "Testing installation in $HOME"
           bash ./claudebox.run
-          ls -la ~/.claudebox/scripts/bin/
+          ls -la ~/.claudebox/source/
           ~/.local/bin/claudebox --help || echo "OK (help displayed or no version flag)"
 
       - name: Upload installer artifact
