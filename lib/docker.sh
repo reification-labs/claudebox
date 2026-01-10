@@ -224,23 +224,24 @@ run_claudebox_container() {
         -v "$PROJECT_PARENT_DIR":"/home/$DOCKER_USER/.claudebox:ro"
     )
 
-    # Ensure .claude directory exists
-    if [[ ! -d "$PROJECT_SLOT_DIR/.claude" ]]; then
-        mkdir -p "$PROJECT_SLOT_DIR/.claude"
-    fi
+    # Get profile directory and ensure it exists with all required subdirectories
+    local profile_dir
+    profile_dir=$(get_profile_dir)
+    init_profile_dir
 
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":"/home/$DOCKER_USER/.claude")
+    # Mount profile directories for Claude state, config, and cache
+    docker_args+=(-v "$profile_dir/.claude":"/home/$DOCKER_USER/.claude")
 
     # Mount .claude.json only if it already exists (from previous session)
-    if [[ -f "$PROJECT_SLOT_DIR/.claude.json" ]]; then
-        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":"/home/$DOCKER_USER/.claude.json")
+    if [[ -f "$profile_dir/.claude.json" ]]; then
+        docker_args+=(-v "$profile_dir/.claude.json":"/home/$DOCKER_USER/.claude.json")
     fi
 
     # Mount .config directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":"/home/$DOCKER_USER/.config")
+    docker_args+=(-v "$profile_dir/.config":"/home/$DOCKER_USER/.config")
 
     # Mount .cache directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":"/home/$DOCKER_USER/.cache")
+    docker_args+=(-v "$profile_dir/.cache":"/home/$DOCKER_USER/.cache")
 
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
