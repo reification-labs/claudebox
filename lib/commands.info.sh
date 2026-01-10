@@ -376,10 +376,11 @@ Usage:
                 local host_path container_path mode
                 IFS=':' read -r host_path container_path mode <<< "$line"
 
-                # Check if host path exists
+                # Check if host path exists (expand tilde first)
+                local expanded_host_path="${host_path/#\~/$HOME}"
                 local status_icon="✓"
                 local status_color="$GREEN"
-                if [[ ! -e "$host_path" ]]; then
+                if [[ ! -e "$expanded_host_path" ]]; then
                     status_icon="✗"
                     status_color="$RED"
                 fi
