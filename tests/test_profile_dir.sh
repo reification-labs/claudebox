@@ -94,6 +94,42 @@ test_profile_not_in_home() {
 run_test "Profile dir is NOT in ~/.claudebox/projects" test_profile_not_in_home
 
 echo
+echo "2. init_profile_dir() function"
+echo "-------------------------------"
+
+# Test: init_profile_dir creates the directory structure
+test_init_creates_dirs() {
+    init_profile_dir "testprofile"
+    local profile_dir
+    profile_dir=$(get_profile_dir "testprofile")
+
+    [[ -d "$profile_dir" ]] && \
+    [[ -d "$profile_dir/.claude" ]] && \
+    [[ -d "$profile_dir/.config" ]] && \
+    [[ -d "$profile_dir/.cache" ]]
+}
+run_test "init_profile_dir creates .claude, .config, .cache dirs" test_init_creates_dirs
+
+# Test: init_profile_dir is idempotent (can run twice safely)
+test_init_idempotent() {
+    init_profile_dir "idempotent-test"
+    init_profile_dir "idempotent-test"  # Run again
+    local profile_dir
+    profile_dir=$(get_profile_dir "idempotent-test")
+    [[ -d "$profile_dir/.claude" ]]
+}
+run_test "init_profile_dir is idempotent" test_init_idempotent
+
+# Test: init_profile_dir with default profile name
+test_init_default_profile() {
+    init_profile_dir
+    local profile_dir
+    profile_dir=$(get_profile_dir)
+    [[ -d "$profile_dir/.claude" ]]
+}
+run_test "init_profile_dir with no arg creates 'default' profile" test_init_default_profile
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

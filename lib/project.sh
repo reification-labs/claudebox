@@ -643,9 +643,23 @@ get_profile_dir() {
     echo "$PROJECT_DIR/.claudebox/profiles/$profile_name"
 }
 
+# Initialize a profile directory with required subdirectories
+# Usage: init_profile_dir [profile_name]
+# Creates: $PROJECT_DIR/.claudebox/profiles/<profile_name>/{.claude,.config,.cache}
+init_profile_dir() {
+    local profile_name="${1:-default}"
+    local profile_dir
+    profile_dir=$(get_profile_dir "$profile_name")
+
+    # Create profile directory and subdirectories
+    mkdir -p "$profile_dir/.claude"
+    mkdir -p "$profile_dir/.config"
+    mkdir -p "$profile_dir/.cache"
+}
+
 # Export all functions
 export -f crc32_word crc32_string crc32_file
-export -f get_profile_dir
+export -f get_profile_dir init_profile_dir
 export -f slugify_path generate_container_name generate_parent_folder_name get_parent_dir
 export -f init_project_dir init_slot_dir
 export -f read_counter write_counter
