@@ -11,6 +11,7 @@
 # - help: Shows ClaudeBox help and Claude CLI help
 # - shell: Opens an interactive shell in the container
 # - update: Updates Claude CLI and optionally ClaudeBox itself
+# shellcheck source=commands.core.sh  # Dynamic path, file exists at runtime
 source "${LIB_DIR}/commands.core.sh"
 
 # ============================================================================
@@ -22,6 +23,7 @@ source "${LIB_DIR}/commands.core.sh"
 # - add: Adds development profiles to the project
 # - remove: Removes profiles from the project
 # - install: Installs additional apt packages
+# shellcheck source=commands.profile.sh
 source "${LIB_DIR}/commands.profile.sh"
 
 # ============================================================================
@@ -32,6 +34,7 @@ source "${LIB_DIR}/commands.profile.sh"
 # - slots: Lists all container slots for the project
 # - slot: Launches a specific numbered slot
 # - revoke: Removes container slots
+# shellcheck source=commands.slot.sh
 source "${LIB_DIR}/commands.slot.sh"
 
 # ============================================================================
@@ -41,6 +44,7 @@ source "${LIB_DIR}/commands.slot.sh"
 # - info: Shows comprehensive project and system information
 # - projects: Lists all ClaudeBox projects system-wide
 # - allowlist: Shows/manages the firewall allowlist
+# shellcheck source=commands.info.sh
 source "${LIB_DIR}/commands.info.sh"
 
 # ============================================================================
@@ -50,6 +54,7 @@ source "${LIB_DIR}/commands.info.sh"
 # - clean: Various cleanup operations (containers, images, cache, etc.)
 # - undo: Restores the oldest backup of claudebox script
 # - redo: Restores the newest backup of claudebox script
+# shellcheck source=commands.clean.sh
 source "${LIB_DIR}/commands.clean.sh"
 
 # ============================================================================
@@ -61,6 +66,7 @@ source "${LIB_DIR}/commands.clean.sh"
 # - rebuild: Forces a Docker image rebuild
 # - tmux: Launches ClaudeBox with tmux support
 # - project: Opens a project by name from anywhere
+# shellcheck source=commands.system.sh
 source "${LIB_DIR}/commands.system.sh"
 
 # ============================================================================

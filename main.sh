@@ -6,11 +6,13 @@
 # ==============================================================================
 
 # Version
+# shellcheck disable=SC2034  # Exported via sourced files
 readonly CLAUDEBOX_VERSION="2.0.0"
 
 set -euo pipefail
 
 # Add error handler to show where script fails
+# shellcheck disable=SC2154  # exit_code and i assigned in trap context
 trap 'exit_code=$?; [[ $exit_code -eq 130 ]] && exit 130 || { echo "Error at line $LINENO: Command failed with exit code $exit_code" >&2; echo "Failed command: $BASH_COMMAND" >&2; echo "Call stack:" >&2; for i in ${!BASH_LINENO[@]}; do if [[ $i -gt 0 ]]; then echo "  at ${FUNCNAME[$i]} (${BASH_SOURCE[$i]}:${BASH_LINENO[$i-1]})" >&2; fi; done; }' ERR INT
 
 # ------------------------------------------------------------------ constants --

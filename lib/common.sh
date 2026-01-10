@@ -2,6 +2,7 @@
 # Shared helpers that every module can safely source.
 
 # -------- colours -------------------------------------------------------------
+# shellcheck disable=SC2034  # Colors exported for use in other modules
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
