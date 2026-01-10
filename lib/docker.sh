@@ -252,7 +252,7 @@ run_claudebox_container() {
             # Skip comments and empty lines
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^#.* ]]; then
                 local host_path container_path mode
-                IFS=':' read -r host_path container_path mode <<< "$line"
+                IFS=':' read -r host_path container_path mode <<<"$line"
 
                 # Validate all fields are non-empty
                 if [[ -z "$host_path" || -z "$container_path" || -z "$mode" ]]; then
@@ -293,7 +293,7 @@ run_claudebox_container() {
                     fi
                 fi
             fi
-        done < "$mounts_file"
+        done <"$mounts_file"
     fi
 
     # Mount .env file if it exists in the project directory
