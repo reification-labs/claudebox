@@ -41,6 +41,7 @@ source "${LIB_DIR}/commands.slot.sh"
 # - info: Shows comprehensive project and system information
 # - projects: Lists all ClaudeBox projects system-wide
 # - allowlist: Shows/manages the firewall allowlist
+# - mount: Shows/manages custom volume mounts
 source "${LIB_DIR}/commands.info.sh"
 
 # ============================================================================
@@ -116,6 +117,7 @@ show_help() {
   shell                           Open transient shell
   shell admin                     Open admin shell (sudo enabled)
   allowlist                       Show/edit firewall allowlist
+  mount                           Show/edit custom volume mounts
   info                            Show comprehensive project info
   clean                           Menu of cleanup tasks
   create                          Create new authenticated container slot
@@ -225,6 +227,7 @@ show_full_help() {
   shell                           Open transient shell\
   shell admin                     Open admin shell (sudo enabled)\
   allowlist                       Show/edit firewall allowlist\
+  mount                           Show/edit custom volume mounts\
   info                            Show comprehensive project info\
   clean                           Menu of cleanup tasks\
   create                          Create new authenticated container slot\
@@ -282,6 +285,7 @@ dispatch_command() {
         # Info commands
         projects)         _cmd_projects "$@" ;;
         allowlist)        _cmd_allowlist "$@" ;;
+        mount)            _cmd_mount "$@" ;;
         info)             _cmd_info "$@" ;;
         
         # Clean commands
