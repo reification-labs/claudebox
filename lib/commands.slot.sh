@@ -150,7 +150,7 @@ _cmd_revoke() {
         if [[ "$VERBOSE" == "true" ]]; then
             echo "[DEBUG] Starting removal loop" >&2
         fi
-        for ((idx = $max; idx >= 1; idx--)); do
+        for ((idx = max; idx >= 1; idx--)); do
             local name
             name=$(generate_container_name "$PROJECT_DIR" "$idx")
             local dir="$parent/$name"

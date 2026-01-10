@@ -102,7 +102,7 @@ _cmd_kill() {
         echo "$containers" | while IFS= read -r container; do
             local slot_hash=${container##*-}
             local project_part=${container#claudebox-}
-            project_part=${project_part%-$slot_hash}
+            project_part=${project_part%-"$slot_hash"}
             echo "  $slot_hash - $project_part"
         done
         echo
@@ -510,7 +510,7 @@ Current directory: $PWD"
 
                 # Create additional panes one by one and capture their IDs atomically
                 local slot_index=1
-                for ((i = 1; i < $layout; i++)); do
+                for ((i = 1; i < layout; i++)); do
                     local slot="${available_slots[$slot_index]}"
 
                     # Split and create new pane - capture ID atomically with -P -F
@@ -632,7 +632,7 @@ Current directory: $PWD"
                 local wait_count=0
                 while [[ "$all_ready" == "false" ]] && [[ $wait_count -lt 30 ]]; do
                     all_ready=true
-                    for ((idx = 0; idx < $slot_index; idx++)); do
+                    for ((idx = 0; idx < slot_index; idx++)); do
                         local slot="${available_slots[$idx]}"
                         local slot_name
                         slot_name=$(generate_container_name "$PROJECT_DIR" "$slot")
@@ -852,7 +852,7 @@ _cmd_import() {
     echo
 
     # Get user selection
-    read -p "Select command(s) to import (number, 'a' for all, or 'q' to quit): " selection
+    read -rp "Select command(s) to import (number, 'a' for all, or 'q' to quit): " selection
 
     case "$selection" in
         q | Q)

@@ -219,7 +219,7 @@ run_claudebox_container() {
     docker_args+=(
         -w /workspace
         -v "$PROJECT_DIR":/workspace
-        -v "$PROJECT_PARENT_DIR":/home/"$DOCKER_USER"/.claudebox
+        -v "$PROJECT_PARENT_DIR":"/home/$DOCKER_USER/.claudebox"
     )
 
     # Ensure .claude directory exists
@@ -227,18 +227,18 @@ run_claudebox_container() {
         mkdir -p "$PROJECT_SLOT_DIR/.claude"
     fi
 
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":/home/"$DOCKER_USER"/.claude)
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":"/home/$DOCKER_USER/.claude")
 
     # Mount .claude.json only if it already exists (from previous session)
     if [[ -f "$PROJECT_SLOT_DIR/.claude.json" ]]; then
-        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":/home/"$DOCKER_USER"/.claude.json)
+        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":"/home/$DOCKER_USER/.claude.json")
     fi
 
     # Mount .config directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":/home/"$DOCKER_USER"/.config)
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":"/home/$DOCKER_USER/.config")
 
     # Mount .cache directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":/home/"$DOCKER_USER"/.cache)
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":"/home/$DOCKER_USER/.cache")
 
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")

@@ -300,7 +300,6 @@ dispatch_command() {
         tmux) _cmd_tmux "$@" ;;
         project) _cmd_project "$@" ;;
         import) _cmd_import "$@" ;;
-        kill) _cmd_kill "$@" ;;
 
         # Special commands that modify container
         config | mcp | migrate-installer)
