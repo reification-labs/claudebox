@@ -26,6 +26,17 @@ jobs:
       run: |
         cd tests
         bash test_in_bash32_docker.sh
+
+    - name: Run mount command validation tests
+      run: |
+        cd tests
+        bash test_mount_command.sh
+
+    - name: Run Docker mount :ro enforcement tests (Linux only)
+      if: runner.os == 'Linux'
+      run: |
+        cd tests
+        bash test_mount_readonly.sh
         
   lint:
     runs-on: ubuntu-latest

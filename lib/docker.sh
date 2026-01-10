@@ -243,6 +243,57 @@ run_claudebox_container() {
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
 
+    # Mount custom volumes from mounts file
+    local mounts_file="$PROJECT_PARENT_DIR/mounts"
+    if [[ -f "$mounts_file" ]]; then
+        while IFS= read -r line; do
+            # Skip comments and empty lines
+            if [[ -n "$line" ]] && [[ ! "$line" =~ ^#.* ]]; then
+                local host_path container_path mode
+                IFS=':' read -r host_path container_path mode <<< "$line"
+
+                # Validate all fields are non-empty
+                if [[ -z "$host_path" || -z "$container_path" || -z "$mode" ]]; then
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Skipping malformed mount (empty field): $line" >&2
+                    fi
+                    continue
+                fi
+
+                # Validate mode is ro or rw
+                if [[ "$mode" != "ro" && "$mode" != "rw" ]]; then
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Skipping mount (invalid mode '$mode'): $line" >&2
+                    fi
+                    continue
+                fi
+
+                # Expand ~ in host path
+                host_path="${host_path/#\~/$HOME}"
+
+                # Validate paths don't contain colons (would break Docker volume spec)
+                if [[ "$host_path" == *:* || "$container_path" == *:* ]]; then
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Skipping mount (colon in path): $host_path -> $container_path" >&2
+                    fi
+                    continue
+                fi
+
+                # Only mount if host path exists
+                if [[ -e "$host_path" ]]; then
+                    docker_args+=(-v "${host_path}:${container_path}:${mode}")
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Mounting custom volume: $host_path -> $container_path ($mode)" >&2
+                    fi
+                else
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Skipping mount (host path not found): $host_path" >&2
+                    fi
+                fi
+            fi
+        done < "$mounts_file"
+    fi
+
     # Mount .env file if it exists in the project directory
     if [[ -f "$PROJECT_DIR/.env" ]]; then
         docker_args+=(-v "$PROJECT_DIR/.env":/workspace/.env:ro)
