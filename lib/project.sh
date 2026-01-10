@@ -263,7 +263,28 @@ find_inactive_slot() {
 # Get the project folder name - returns the next available slot
 get_project_folder_name() {
     local path="$1"
-    # First ensure project is initialized
+
+    # Check for new profile-based structure first
+    local profiles_dir="$path/.claudebox/profiles"
+    if [[ -d "$profiles_dir" ]]; then
+        # Find first available profile (prefer "default")
+        if [[ -d "$profiles_dir/default" ]]; then
+            echo "default"
+            return 0
+        fi
+        # Otherwise return first profile found
+        local first_profile
+        first_profile=$(ls -1 "$profiles_dir" 2>/dev/null | head -1)
+        if [[ -n "$first_profile" ]]; then
+            echo "$first_profile"
+            return 0
+        fi
+        # Profiles dir exists but empty - still a valid project
+        echo "default"
+        return 0
+    fi
+
+    # Fall back to old slot-based system
     init_project_dir "$path"
 
     # Find next available slot
