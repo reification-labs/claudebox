@@ -270,6 +270,14 @@ run_claudebox_container() {
                 # Expand ~ in host path
                 host_path="${host_path/#\~/$HOME}"
 
+                # Validate paths don't contain colons (would break Docker volume spec)
+                if [[ "$host_path" == *:* || "$container_path" == *:* ]]; then
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Skipping mount (colon in path): $host_path -> $container_path" >&2
+                    fi
+                    continue
+                fi
+
                 # Only mount if host path exists
                 if [[ -e "$host_path" ]]; then
                     docker_args+=(-v "${host_path}:${container_path}:${mode}")
