@@ -6,7 +6,8 @@
 
 _cmd_profiles() {
     # Get current profiles
-    local current_profiles=($(get_current_profiles))
+    local current_profiles=()
+    readarray -t current_profiles < <(get_current_profiles)
 
     # Show logo first
     logo_small
@@ -28,8 +29,9 @@ _cmd_profiles() {
     # Show available profiles
     cecho "Available profiles:" "$CYAN"
     printf '\n'
-    for profile in $(get_all_profile_names | tr ' ' '\n' | sort); do
-        local desc=$(get_profile_description "$profile")
+    while IFS= read -r profile; do
+        local desc
+        desc=$(get_profile_description "$profile")
         local is_enabled=false
         # Check if profile is currently enabled
         for enabled in "${current_profiles[@]}"; do
@@ -45,7 +47,7 @@ _cmd_profiles() {
             printf "  "
         fi
         printf "%s\n" "$desc"
-    done
+    done < <(get_all_profile_names | tr ' ' '\n' | sort)
     printf '\n'
     exit 0
 }

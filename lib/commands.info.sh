@@ -182,17 +182,20 @@ _cmd_info() {
         echo -e "   Image:      ${YELLOW}Not built${NC}"
     fi
 
-    local running_containers=$(docker ps --filter "ancestor=$IMAGE_NAME" -q 2>/dev/null)
+    local running_containers
+    running_containers=$(docker ps --filter "ancestor=$IMAGE_NAME" -q 2>/dev/null)
     if [[ -n "$running_containers" ]]; then
-        local container_count=$(echo "$running_containers" | wc -l)
+        local container_count
+        container_count=$(echo "$running_containers" | wc -l)
         echo -e "   Containers: ${GREEN}$container_count running${NC}"
 
-        for container_id in $running_containers; do
-            local container_stats="$(docker stats --no-stream --format "{{.Container}}: {{.CPUPerc}} CPU, {{.MemUsage}}" "$container_id" 2>/dev/null || echo "")"
+        while IFS= read -r container_id; do
+            local container_stats
+            container_stats="$(docker stats --no-stream --format "{{.Container}}: {{.CPUPerc}} CPU, {{.MemUsage}}" "$container_id" 2>/dev/null || echo "")"
             if [[ -n "$container_stats" ]]; then
                 echo "               - $container_stats"
             fi
-        done
+        done <<< "$running_containers"
     else
         echo "   Containers: None running"
     fi

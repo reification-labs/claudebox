@@ -71,7 +71,10 @@ get_all_profile_names() {
 
 profile_exists() {
     local profile="$1"
-    for p in $(get_all_profile_names); do
+    local all_profiles
+    read -ra all_profiles <<< "$(get_all_profile_names)"
+    local p
+    for p in "${all_profiles[@]}"; do
         [[ "$p" == "$profile" ]] && return 0
     done
     return 1
