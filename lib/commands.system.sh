@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2155  # Exported vars, readonly assignments
 # System Commands - System-level operations and utilities
 # ============================================================================
 # Commands: save, unlink, rebuild, tmux, open

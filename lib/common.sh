@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2155  # Exported vars, readonly assignments
 # Shared helpers that every module can safely source.
 
 # -------- colours -------------------------------------------------------------

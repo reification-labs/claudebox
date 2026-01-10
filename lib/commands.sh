@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2155,SC1091  # Exported vars, readonly, dynamic sources
 # Command Module Loader and Reference
 # ============================================================================
 # This is the central command management system for ClaudeBox.

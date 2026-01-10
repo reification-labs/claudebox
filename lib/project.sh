@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2155  # Exported vars, readonly assignments
 # Multi-slot container management system with CRC32 hashing
 # Enables multiple authenticated Claude instances per project
 

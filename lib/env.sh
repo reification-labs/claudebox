@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2155  # Exported vars, readonly assignments
 # All immutable or rarely‑changing environment variables live here.
 
 # Configuration

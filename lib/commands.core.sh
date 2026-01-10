@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2155,SC2329  # Exported vars, readonly, indirect calls
 # Core Commands - Essential ClaudeBox operations
 # ============================================================================
 # Commands: help, shell, update
