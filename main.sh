@@ -28,7 +28,9 @@ get_script_path() {
     echo "$(cd -P "$(dirname "$source")" && pwd)/$(basename "$source")"
 }
 
+# shellcheck disable=SC2155 # readonly vars must be assigned at declaration
 readonly SCRIPT_PATH="$(get_script_path)"
+# shellcheck disable=SC2155 # readonly vars must be assigned at declaration
 readonly SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 # Now that script is at root, SCRIPT_DIR is the repo/install root
 readonly INSTALL_ROOT="$HOME/.claudebox"

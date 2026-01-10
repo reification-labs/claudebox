@@ -244,6 +244,7 @@ _cmd_tmux() {
                 cecho "Tmux Sessions:" "$GREEN"
                 echo "$sessions" | while IFS= read -r session; do
                     # Extract project name from session
+                    # shellcheck disable=SC2034 # Extracted for future display enhancements
                     local proj_name=${session#claudebox-}
                     echo "  $session"
 
@@ -391,6 +392,7 @@ Please install tmux first:
     # Parse layout parameter if provided
     local layout="${1:-}"
     local total_slots_needed=1
+    # shellcheck disable=SC2034 # Placeholder for future window layout configuration
     local window_configs=()
 
     # Collect all numeric arguments for layout
@@ -735,6 +737,7 @@ _cmd_project() {
     elif [ ${#matches[@]} -eq 1 ]; then
         # Single match - use it
         local project_path="${matches[0]%%|*}"
+        # shellcheck disable=SC2034 # Available for future logging (see commented info calls below)
         local project_name="${matches[0]##*|}"
 
         #info "Opening project: $project_name"

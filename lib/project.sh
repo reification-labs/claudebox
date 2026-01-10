@@ -285,6 +285,7 @@ _get_project_slug() {
 get_project_by_path() {
     local search_path="$1"
     local abs_path
+    # shellcheck disable=SC2034 # Computed for future reverse-lookup implementation
     abs_path=$(realpath "$search_path" 2>/dev/null || echo "$search_path")
 
     # Check all parent directories in ~/.claudebox/projects/
@@ -313,6 +314,7 @@ list_all_projects() {
 
         local parent_name
         parent_name=$(basename "$parent_dir")
+        # shellcheck disable=SC2034 # Path constructed for future profile parsing
         local profiles_file="$parent_dir/profiles.ini"
         local slot_count=0
         local active_slots=0

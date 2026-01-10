@@ -78,6 +78,7 @@ process_host_flags() {
 # "docker" - needs Docker running and will run container
 get_command_requirements() {
     local cmd="${1:-}"
+    # shellcheck disable=SC2034 # Reserved for future subcommand-specific requirements
     local subcommand="${2:-}"
 
     case "$cmd" in

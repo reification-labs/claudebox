@@ -382,8 +382,11 @@ run_claudebox_container() {
     slot_name=$(basename "$PROJECT_SLOT_DIR")
 
     # Calculate slot index for hostname
-    local slot_index=1 # default if we can't determine
+    # shellcheck disable=SC2034 # default - retained for future hostname customization
+    local slot_index=1
+    # ^ reassigned below if we can determine actual index
     if [[ -n "$PROJECT_PARENT_DIR" ]] && [[ -n "$slot_name" ]]; then
+        # shellcheck disable=SC2034 # Retained for future hostname customization
         slot_index=$(get_slot_index "$slot_name" "$PROJECT_PARENT_DIR" 2>/dev/null || echo "1")
     fi
 

@@ -210,7 +210,8 @@ _cmd_info() {
     total_projects=$(ls -1d "$HOME/.claudebox/projects"/*/ 2>/dev/null | wc -l)
     echo "   Projects:   $total_projects total"
 
-    local total_size=$(docker images --filter "reference=claudebox-*" --format "{{.Size}}" | awk '{
+    local total_size
+    total_size=$(docker images --filter "reference=claudebox-*" --format "{{.Size}}" | awk '{
         size=$1; unit=$2;
         if (unit == "GB") size = size * 1024;
         else if (unit == "KB") size = size / 1024;

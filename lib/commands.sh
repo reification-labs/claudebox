@@ -216,7 +216,8 @@ show_full_help() {
         claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
 
         # Process and combine everything in memory
-        local full_help=$(echo "$claude_help" |
+        local full_help
+        full_help=$(echo "$claude_help" |
             sed '1s/claude/claudebox/g' |
             sed '/^Commands:/i\
   --verbose                        Show detailed output\
