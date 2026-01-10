@@ -68,8 +68,15 @@ get_parent_dir() {
 }
 
 # Initialize project directory: create parent, counter, central profiles.ini
+# NOTE: Skip if using new project-local profile structure
 init_project_dir() {
     local path="$1" parent
+
+    # If new profile structure exists, don't create old ~/.claudebox/projects/ structure
+    if [[ -d "$path/.claudebox/profiles" ]]; then
+        return 0
+    fi
+
     parent=$(get_parent_dir "$path")
     mkdir -p "$parent"
     # initialize counter if missing
