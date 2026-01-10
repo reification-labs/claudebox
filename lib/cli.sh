@@ -103,7 +103,8 @@ get_command_requirements() {
 # Legacy function for compatibility
 requires_docker_image() {
     local cmd="${1:-}"
-    local req=$(get_command_requirements "$cmd")
+    local req
+    req=$(get_command_requirements "$cmd")
     [[ "$req" == "docker" ]]
 }
 

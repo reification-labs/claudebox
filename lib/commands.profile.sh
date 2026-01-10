@@ -155,7 +155,8 @@ _cmd_add() {
 
     # If Python profiles were added, remove the pydev flag to trigger reinstall
     if [[ "$python_profiles_added" == "true" ]]; then
-        local parent_dir=$(get_parent_dir "$PROJECT_DIR")
+        local parent_dir
+        parent_dir=$(get_parent_dir "$PROJECT_DIR")
         if [[ -f "$parent_dir/.pydev_flag" ]]; then
             rm -f "$parent_dir/.pydev_flag"
             info "Python packages will be updated on next run"

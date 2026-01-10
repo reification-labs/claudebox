@@ -151,12 +151,14 @@ _cmd_update() {
 
         if [[ -f /tmp/claudebox.new ]]; then
             # Find the installed claudebox (not the source)
-            local installed_path=$(which claudebox 2>/dev/null || echo "/usr/local/bin/claudebox")
+            local installed_path
+            installed_path=$(which claudebox 2>/dev/null || echo "/usr/local/bin/claudebox")
 
             # If it's a symlink, replace it with the actual file first
             if [[ -L "$installed_path" ]]; then
                 info "Converting symlink to real file..."
-                local source_file=$(readlink -f "$installed_path")
+                local source_file
+                source_file=$(readlink -f "$installed_path")
                 if [[ -w "$(dirname "$installed_path")" ]]; then
                     cp "$source_file" "$installed_path.tmp"
                     mv "$installed_path.tmp" "$installed_path"
@@ -178,7 +180,8 @@ _cmd_update() {
                 # Backup current installed version
                 local backups_dir="$HOME/.claudebox/backups"
                 mkdir -p "$backups_dir"
-                local timestamp=$(date +%s)
+                local timestamp
+                timestamp=$(date +%s)
                 cp "$installed_path" "$backups_dir/$timestamp"
                 info "Backed up current version to $backups_dir/$timestamp"
 

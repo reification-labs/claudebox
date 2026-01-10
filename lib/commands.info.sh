@@ -171,11 +171,14 @@ _cmd_info() {
 
     cecho "🐳 Docker Status" "$WHITE"
     if [[ -n "${IMAGE_NAME:-}" ]] && docker image inspect "$IMAGE_NAME" &>/dev/null; then
-        local image_info=$(docker images --filter "reference=$IMAGE_NAME" --format "{{.Size}}")
+        local image_info
+        image_info=$(docker images --filter "reference=$IMAGE_NAME" --format "{{.Size}}")
         echo -e "   Image:      ${GREEN}Ready${NC} ($IMAGE_NAME - $image_info)"
 
-        local image_created=$(docker inspect "$IMAGE_NAME" --format '{{.Created}}' | cut -d'T' -f1)
-        local layer_count=$(docker history "$IMAGE_NAME" --no-trunc --format "{{.CreatedBy}}" | wc -l)
+        local image_created
+        image_created=$(docker inspect "$IMAGE_NAME" --format '{{.Created}}' | cut -d'T' -f1)
+        local layer_count
+        layer_count=$(docker history "$IMAGE_NAME" --no-trunc --format "{{.CreatedBy}}" | wc -l)
         echo "   Created:    $image_created"
         echo "   Layers:     $layer_count"
     else
@@ -203,7 +206,8 @@ _cmd_info() {
 
     # All Projects Summary
     cecho "📊 All Projects Summary" "$WHITE"
-    local total_projects=$(ls -1d "$HOME/.claudebox/projects"/*/ 2>/dev/null | wc -l)
+    local total_projects
+    total_projects=$(ls -1d "$HOME/.claudebox/projects"/*/ 2>/dev/null | wc -l)
     echo "   Projects:   $total_projects total"
 
     local total_size=$(docker images --filter "reference=claudebox-*" --format "{{.Size}}" | awk '{
@@ -215,10 +219,12 @@ _cmd_info() {
         if (total > 1024) printf "%.1fGB", total/1024;
         else printf "%.1fMB", total
     }')
-    local image_count=$(docker images --filter "reference=claudebox-*" -q | wc -l)
+    local image_count
+    image_count=$(docker images --filter "reference=claudebox-*" -q | wc -l)
     echo "   Images:     $image_count ClaudeBox images using $total_size"
 
-    local docker_stats=$(docker system df --format "table {{.Type}}\t{{.Total}}\t{{.Active}}\t{{.Size}}\t{{.Reclaimable}}" 2>/dev/null | tail -n +2)
+    local docker_stats
+    docker_stats=$(docker system df --format "table {{.Type}}\t{{.Total}}\t{{.Active}}\t{{.Size}}\t{{.Reclaimable}}" 2>/dev/null | tail -n +2)
     if [[ -n "$docker_stats" ]]; then
         echo "   System:"
         while IFS=$'\t' read -r type total active size reclaim; do

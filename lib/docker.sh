@@ -153,7 +153,8 @@ run_claudebox_container() {
         tmux_socket_dir=$(dirname "$tmux_socket")
     else
         # Look for existing tmux socket or determine where to create one
-        local uid=$(id -u)
+        local uid
+        uid=$(id -u)
         local default_socket_dir="/tmp/tmux-$uid"
 
         # Check common locations for existing sockets
@@ -267,7 +268,8 @@ run_claudebox_container() {
         local temp_file="$2"
 
         # Create temporary file with unique name
-        local mcp_file=$(mktemp /tmp/claudebox-mcp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
+        local mcp_file
+        mcp_file=$(mktemp /tmp/claudebox-mcp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
         mcp_temp_files+=("$mcp_file")
 
         # Extract mcpServers if they exist
@@ -315,7 +317,8 @@ run_claudebox_container() {
         user_mcp_file=$(create_mcp_config_file "$HOME/.claude.json" "")
 
         if [[ -n "$user_mcp_file" ]]; then
-            local user_count=$(jq '.mcpServers | length' "$user_mcp_file" 2>/dev/null || echo "0")
+            local user_count
+            user_count=$(jq '.mcpServers | length' "$user_mcp_file" 2>/dev/null || echo "0")
             if [[ "$user_count" -gt 0 ]]; then
                 if [[ "$VERBOSE" == "true" ]]; then
                     printf "Found %s user MCP servers\n" "$user_count" >&2
@@ -333,7 +336,8 @@ run_claudebox_container() {
 
     # Create project MCP config file by merging project configs
     # Start with empty config file for merging
-    local temp_project_file=$(mktemp /tmp/claudebox-project-temp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
+    local temp_project_file
+    temp_project_file=$(mktemp /tmp/claudebox-project-temp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
     mcp_temp_files+=("$temp_project_file")
     echo '{"mcpServers":{}}' >"$temp_project_file"
 
@@ -355,7 +359,8 @@ run_claudebox_container() {
     fi
 
     # Check if we have any project servers
-    local project_count=$(jq '.mcpServers | length' "$temp_project_file" 2>/dev/null || echo "0")
+    local project_count
+    project_count=$(jq '.mcpServers | length' "$temp_project_file" 2>/dev/null || echo "0")
     if [[ "$project_count" -gt 0 ]]; then
         project_mcp_file="$temp_project_file"
         if [[ "$VERBOSE" == "true" ]]; then
@@ -371,8 +376,10 @@ run_claudebox_container() {
     fi
 
     # Add environment variables
-    local project_name=$(basename "$PROJECT_DIR")
-    local slot_name=$(basename "$PROJECT_SLOT_DIR")
+    local project_name
+    project_name=$(basename "$PROJECT_DIR")
+    local slot_name
+    slot_name=$(basename "$PROJECT_SLOT_DIR")
 
     # Calculate slot index for hostname
     local slot_index=1 # default if we can't determine

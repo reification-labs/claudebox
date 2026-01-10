@@ -100,7 +100,8 @@ expand_profile() {
 # -------- Profile file management ---------------------------------------------
 get_profile_file_path() {
     # Use the parent directory name, not the slot name
-    local parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
+    local parent_name
+    parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
     local parent_dir="$HOME/.claudebox/projects/$parent_name"
     mkdir -p "$parent_dir"
     echo "$parent_dir/profiles.ini"
@@ -179,7 +180,8 @@ update_profile_section() {
 }
 
 get_current_profiles() {
-    local profiles_file="${PROJECT_PARENT_DIR:-$HOME/.claudebox/projects/$(generate_parent_folder_name "$PWD")}/profiles.ini"
+    local profiles_file
+    profiles_file="${PROJECT_PARENT_DIR:-$HOME/.claudebox/projects/$(generate_parent_folder_name "$PWD")}/profiles.ini"
     local current_profiles=()
 
     if [[ -f "$profiles_file" ]]; then
@@ -193,42 +195,48 @@ get_current_profiles() {
 
 # -------- Profile installation functions for Docker builds -------------------
 get_profile_core() {
-    local packages=$(get_profile_packages "core")
+    local packages
+    packages=$(get_profile_packages "core")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_build_tools() {
-    local packages=$(get_profile_packages "build-tools")
+    local packages
+    packages=$(get_profile_packages "build-tools")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_shell() {
-    local packages=$(get_profile_packages "shell")
+    local packages
+    packages=$(get_profile_packages "shell")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_networking() {
-    local packages=$(get_profile_packages "networking")
+    local packages
+    packages=$(get_profile_packages "networking")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_c() {
-    local packages=$(get_profile_packages "c")
+    local packages
+    packages=$(get_profile_packages "c")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_openwrt() {
-    local packages=$(get_profile_packages "openwrt")
+    local packages
+    packages=$(get_profile_packages "openwrt")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
@@ -302,42 +310,48 @@ EOF
 }
 
 get_profile_ruby() {
-    local packages=$(get_profile_packages "ruby")
+    local packages
+    packages=$(get_profile_packages "ruby")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_php() {
-    local packages=$(get_profile_packages "php")
+    local packages
+    packages=$(get_profile_packages "php")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_database() {
-    local packages=$(get_profile_packages "database")
+    local packages
+    packages=$(get_profile_packages "database")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_devops() {
-    local packages=$(get_profile_packages "devops")
+    local packages
+    packages=$(get_profile_packages "devops")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_web() {
-    local packages=$(get_profile_packages "web")
+    local packages
+    packages=$(get_profile_packages "web")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_embedded() {
-    local packages=$(get_profile_packages "embedded")
+    local packages
+    packages=$(get_profile_packages "embedded")
     if [[ -n "$packages" ]]; then
         cat <<'EOF'
 RUN apt-get update && apt-get install -y gcc-arm-none-eabi gdb-multiarch openocd picocom minicom screen && apt-get clean
@@ -349,14 +363,16 @@ EOF
 }
 
 get_profile_datascience() {
-    local packages=$(get_profile_packages "datascience")
+    local packages
+    packages=$(get_profile_packages "datascience")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi
 }
 
 get_profile_security() {
-    local packages=$(get_profile_packages "security")
+    local packages
+    packages=$(get_profile_packages "security")
     if [[ -n "$packages" ]]; then
         echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
     fi

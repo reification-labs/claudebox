@@ -185,10 +185,12 @@ show_help() {
 show_claude_help() {
     if [[ -n "${IMAGE_NAME:-}" ]] && docker image inspect "$IMAGE_NAME" &>/dev/null; then
         # Get Claude's help and just change claude to claudebox in the header
-        local claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
+        local claude_help
+        claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
 
         # Just change claude to claudebox in the first line
-        local processed_help=$(echo "$claude_help" | sed '1s/claude/claudebox/g')
+        local processed_help
+        processed_help=$(echo "$claude_help" | sed '1s/claude/claudebox/g')
 
         # Output everything at once
         echo
@@ -204,7 +206,8 @@ show_claude_help() {
 show_full_help() {
     if [[ -n "${IMAGE_NAME:-}" ]] && docker image inspect "$IMAGE_NAME" &>/dev/null; then
         # Get Claude's help and blend our additions
-        local claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
+        local claude_help
+        claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
 
         # Process and combine everything in memory
         local full_help=$(echo "$claude_help" |
