@@ -29,8 +29,12 @@ jobs:
           export HOME="$TEST_HOME"
           echo "Testing installation in $HOME"
           bash ./claudebox.run
-          ls -la ~/.claudebox/scripts/bin/
-          ~/.local/bin/claudebox --help || echo "OK (help displayed or no version flag)"
+          echo "Verifying installation..."
+          ls -la ~/.claudebox/source/
+          ls -la ~/.local/bin/claudebox
+          # Add ~/.local/bin to PATH for the test
+          export PATH="$HOME/.local/bin:$PATH"
+          claudebox --help || echo "OK (help displayed)"
 
       - name: Upload installer artifact
         if: matrix.os == 'ubuntu-latest'
