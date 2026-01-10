@@ -426,7 +426,7 @@ Usage:
     echo
     cecho "Default mounts (always included):" "$CYAN"
     echo "  \$PROJECT_DIR -> /workspace (rw)"
-    echo "  ~/.claudebox -> /home/claude/.claudebox (ro)"
+    echo "  ~/.claudebox -> /home/claude/.claudebox (rw)"
     echo "  ~/.ssh -> /home/claude/.ssh (ro)"
     echo
     cecho "Usage:" "$YELLOW"
