@@ -83,11 +83,11 @@ get_command_requirements() {
 
     case "$cmd" in
         # Pure host commands - no Docker or image needed
-        profiles | projects | help | -h | --help | slots | create | revoke | clean | import | unlink | kill)
+        profiles | projects | help | -h | --help | slots | create | revoke | clean | import | unlink | kill | migrate)
             echo "none"
             ;;
         # Commands that need image name but not Docker
-        info|profile|add|remove|install|allowlist|save|mount)
+        info | profile | add | remove | install | allowlist | save | mount)
             echo "image"
             ;;
         # Commands that need Docker and will run containers

@@ -79,7 +79,7 @@ migrate_project() {
     # Find and copy slots
     local slot_num=0
     while IFS= read -r old_slot_dir; do
-        ((slot_num++))
+        slot_num=$((slot_num + 1))
         local new_profile_name
         if [[ $slot_num -eq 1 ]]; then
             new_profile_name="default"
@@ -154,7 +154,7 @@ prompt_migration() {
         slot_count=$(list_old_slots "$old_parent" | wc -l | tr -d ' ')
         if [[ -n "$project_path" ]]; then
             printf "  - %s (%s slot%s)\n" "$project_path" "$slot_count" "$([[ "$slot_count" -eq 1 ]] && echo "" || echo "s")"
-            ((count++))
+            count=$((count + 1))
         fi
     done < <(list_old_projects)
 
@@ -188,9 +188,9 @@ run_migration() {
 
     while IFS= read -r old_parent; do
         if migrate_project "$old_parent"; then
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
     done < <(list_old_projects)
 
