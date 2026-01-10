@@ -245,8 +245,8 @@ show_full_help() {
   env remove <envs...>            Remove development environments\
   env install <packages>          Install apt packages\
   profile list                    List all container profiles\
-  profile create [name]           Create a profile (default: 'default')\
-  profile run [name]              Run a profile (default: 'default')\
+  profile create [name]           Create a profile (default: "default")\
+  profile run [name]              Run a profile (default: "default")\
   profile remove <name>           Remove a profile by name\
   profile kill [name|all]         Kill running container(s)\
   projects                        List all projects with paths\
