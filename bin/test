@@ -23,7 +23,7 @@ SPECIFIC_TESTS=()
 
 for arg in "$@"; do
     case "$arg" in
-        --docker|--all)
+        --docker | --all)
             RUN_DOCKER=true
             ;;
         *)
@@ -81,27 +81,27 @@ for test_file in "${TEST_FILES[@]}"; do
     if is_docker_test "$test_file"; then
         if [[ "$RUN_DOCKER" != "true" ]]; then
             echo -e "${YELLOW}SKIP${NC}: $test_file (use --docker)"
-            ((TOTAL_SKIPPED++))
+            TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
             continue
         fi
         if [[ "$DOCKER_AVAILABLE" != "true" ]]; then
             echo -e "${YELLOW}SKIP${NC}: $test_file (Docker not available)"
-            ((TOTAL_SKIPPED++))
+            TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
             continue
         fi
     fi
 
     # Run test
     echo -n "Running: $test_file... "
-    if bash "$test_file" > /tmp/claudebox_test_$$.txt 2>&1; then
+    if bash "$test_file" >/tmp/claudebox_test_$$.txt 2>&1; then
         echo -e "${GREEN}PASS${NC}"
-        ((TOTAL_PASSED++))
+        TOTAL_PASSED=$((TOTAL_PASSED + 1))
     else
         echo -e "${RED}FAIL${NC}"
         echo "--- Output ---"
         tail -20 /tmp/claudebox_test_$$.txt
         echo "--------------"
-        ((TOTAL_FAILED++))
+        TOTAL_FAILED=$((TOTAL_FAILED + 1))
     fi
     rm -f /tmp/claudebox_test_$$.txt
 done
