@@ -2,6 +2,7 @@
 # Shared helpers that every module can safely source.
 
 # -------- colours -------------------------------------------------------------
+# shellcheck disable=SC2034  # Colors exported for use in other modules
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -14,7 +15,10 @@ readonly NC='\033[0m'
 
 # -------- utility functions ---------------------------------------------------
 cecho() { printf "${2:-$NC}%s${NC}\n" "$1"; }
-error() { cecho "$1" "$RED" >&2; exit "${2:-1}"; }
+error() {
+    cecho "$1" "$RED" >&2
+    exit "${2:-1}"
+}
 warn() { cecho "$1" "$YELLOW"; }
 info() { cecho "$1" "$BLUE"; }
 success() { cecho "$1" "$GREEN"; }
@@ -38,19 +42,28 @@ logo() {
 '
     while IFS= read -r l; do
         o="" c=""
-        for ((i=0;i<${#l};i++)); do
+        for ((i = 0; i < ${#l}; i++)); do
             ch="${l:$i:1}"
-            [ "$ch" = " " ] && { o+="$ch"; continue; }
-            cc=$(printf '%d' "'$ch" 2>/dev/null||echo 0)
-            if [ $cc -ge 32 ] && [ $cc -le 126 ]; then n='\033[33m'      # Yellow for regular text
-            elif [ $cc -ge 9552 ] && [ $cc -le 9580 ]; then n='\033[34m'  # Blue for box drawing
-            elif [ $cc -eq 9608 ]; then n='\033[31m'                      # Red for block chars
-            else n='\033[37m'; fi                                          # White for others
-            [ "$n" != "$c" ] && { o+="$n"; c="$n"; }
+            [ "$ch" = " " ] && {
+                o+="$ch"
+                continue
+            }
+            cc=$(printf '%d' "'$ch" 2>/dev/null || echo 0)
+            if [ "$cc" -ge 32 ] && [ "$cc" -le 126 ]; then
+                n='\033[33m' # Yellow for regular text
+            elif [ "$cc" -ge 9552 ] && [ "$cc" -le 9580 ]; then
+                n='\033[34m' # Blue for box drawing
+            elif [ "$cc" -eq 9608 ]; then
+                n='\033[31m'      # Red for block chars
+            else n='\033[37m'; fi # White for others
+            [ "$n" != "$c" ] && {
+                o+="$n"
+                c="$n"
+            }
             o+="$ch"
         done
         printf "${o}\033[0m\n"
-    done <<< "$cb"
+    done <<<"$cb"
 }
 
 logo_header() {
@@ -64,20 +77,30 @@ logo_header() {
 '
     while IFS= read -r l; do
         o="" c=""
-        for ((i=0;i<${#l};i++)); do
+        for ((i = 0; i < ${#l}; i++)); do
             ch="${l:$i:1}"
-            [ "$ch" = " " ] && { o+="$ch"; continue; }
-            cc=$(printf '%d' "'$ch" 2>/dev/null||echo 0)
-            if [ $cc -ge 32 ] && [ $cc -le 126 ] && [ "$ch" != "•" ]; then n='\033[33m'      # Yellow for regular text
-            elif [ $cc -ge 9552 ] && [ $cc -le 9580 ]; then n='\033[34m'  # Blue for box drawing
-            elif [ $cc -eq 9608 ] || [ $cc -ge 9600 ] && [ $cc -le 9631 ]; then n='\033[31m'  # Red for block chars (CLAUDEBOX)
-            elif [ "$ch" = "•" ]; then n='\033[32m'                       # Green for bullets
-            else n='\033[33m'; fi                                          # Yellow for others
-            [ "$n" != "$c" ] && { o+="$n"; c="$n"; }
+            [ "$ch" = " " ] && {
+                o+="$ch"
+                continue
+            }
+            cc=$(printf '%d' "'$ch" 2>/dev/null || echo 0)
+            if [ "$cc" -ge 32 ] && [ "$cc" -le 126 ] && [ "$ch" != "•" ]; then
+                n='\033[33m' # Yellow for regular text
+            elif [ "$cc" -ge 9552 ] && [ "$cc" -le 9580 ]; then
+                n='\033[34m' # Blue for box drawing
+            elif [ "$cc" -eq 9608 ] || [ "$cc" -ge 9600 ] && [ "$cc" -le 9631 ]; then
+                n='\033[31m' # Red for block chars (CLAUDEBOX)
+            elif [ "$ch" = "•" ]; then
+                n='\033[32m'      # Green for bullets
+            else n='\033[33m'; fi # Yellow for others
+            [ "$n" != "$c" ] && {
+                o+="$n"
+                c="$n"
+            }
             o+="$ch"
         done
         printf "${o}\033[0m\n"
-    done <<< "$cb"
+    done <<<"$cb"
 }
 
 logo_small() {
@@ -88,7 +111,6 @@ logo_small() {
     printf "${RED}%s${NC}" "$cb"
 }
 
-
 # -------- fillbar progress indicator ------------------------------------------
 FILLBAR_PID=""
 
@@ -96,7 +118,7 @@ fillbar() {
     case "${1:-}" in
         stop)
             if [ ! -z "$FILLBAR_PID" ]; then
-                kill $FILLBAR_PID 2>/dev/null
+                kill "$FILLBAR_PID" 2>/dev/null
             fi
             printf "\r\033[K"
             tput cnorm
@@ -111,11 +133,11 @@ fillbar() {
                     full=$((p / 8))
                     part=$((p % 8))
                     i=0
-                    while [ $i -lt $full ]; do
+                    while [ "$i" -lt "$full" ]; do
                         printf "█"
                         i=$((i + 1))
                     done
-                    if [ $part -gt 0 ]; then
+                    if [ "$part" -gt 0 ]; then
                         pb=$(printf %x $((0x258F - part + 1)))
                         printf "\\u$pb"
                     fi

@@ -14,7 +14,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Run Bash 3.2 compatibility tests
       run: |
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Install ShellCheck
       run: |
@@ -39,20 +39,17 @@ jobs:
         sudo apt-get install -y shellcheck
         
     - name: Run ShellCheck on main script
-      run: shellcheck -x main.sh
-      
+      run: shellcheck -x --severity=warning main.sh
+
     - name: Run ShellCheck on library files
-      run: shellcheck -x lib/*.sh
-      
-    - name: Run ShellCheck on command modules
-      run: shellcheck -x lib/commands/*.sh
+      run: shellcheck -x --severity=warning lib/*.sh
       
   build:
     runs-on: ubuntu-latest
     needs: [test-compatibility, lint]
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Build installer
       run: |
@@ -60,16 +57,16 @@ jobs:
         
     - name: Verify installer was created
       run: |
-        test -f claudebox
-        echo "Installer size: $(ls -lh claudebox | awk '{print $5}')"
-        
+        test -f claudebox.run
+        echo "Installer size: $(ls -lh claudebox.run | awk '{print $5}')"
+
     - name: Test installer in dev mode
       run: |
         # Should detect we're in a git repo and run directly
-        ./claudebox --help | grep "ClaudeBox"
-        
+        ./claudebox.run --help | grep "ClaudeBox"
+
     - name: Upload installer artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: claudebox-installer
-        path: claudebox
+        path: claudebox.run

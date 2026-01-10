@@ -11,6 +11,7 @@
 # - help: Shows ClaudeBox help and Claude CLI help
 # - shell: Opens an interactive shell in the container
 # - update: Updates Claude CLI and optionally ClaudeBox itself
+# shellcheck source=commands.core.sh  # Dynamic path, file exists at runtime
 source "${LIB_DIR}/commands.core.sh"
 
 # ============================================================================
@@ -22,6 +23,7 @@ source "${LIB_DIR}/commands.core.sh"
 # - add: Adds development profiles to the project
 # - remove: Removes profiles from the project
 # - install: Installs additional apt packages
+# shellcheck source=commands.profile.sh
 source "${LIB_DIR}/commands.profile.sh"
 
 # ============================================================================
@@ -32,6 +34,7 @@ source "${LIB_DIR}/commands.profile.sh"
 # - slots: Lists all container slots for the project
 # - slot: Launches a specific numbered slot
 # - revoke: Removes container slots
+# shellcheck source=commands.slot.sh
 source "${LIB_DIR}/commands.slot.sh"
 
 # ============================================================================
@@ -41,6 +44,7 @@ source "${LIB_DIR}/commands.slot.sh"
 # - info: Shows comprehensive project and system information
 # - projects: Lists all ClaudeBox projects system-wide
 # - allowlist: Shows/manages the firewall allowlist
+# shellcheck source=commands.info.sh
 source "${LIB_DIR}/commands.info.sh"
 
 # ============================================================================
@@ -50,6 +54,7 @@ source "${LIB_DIR}/commands.info.sh"
 # - clean: Various cleanup operations (containers, images, cache, etc.)
 # - undo: Restores the oldest backup of claudebox script
 # - redo: Restores the newest backup of claudebox script
+# shellcheck source=commands.clean.sh
 source "${LIB_DIR}/commands.clean.sh"
 
 # ============================================================================
@@ -61,6 +66,7 @@ source "${LIB_DIR}/commands.clean.sh"
 # - rebuild: Forces a Docker image rebuild
 # - tmux: Launches ClaudeBox with tmux support
 # - project: Opens a project by name from anywhere
+# shellcheck source=commands.system.sh
 source "${LIB_DIR}/commands.system.sh"
 
 # ============================================================================
@@ -100,11 +106,12 @@ show_no_ready_slots_menu() {
 }
 
 # Show help function
+# shellcheck disable=SC2120 # Parameters are optional, callers may omit them
 show_help() {
     # Optional parameters
     local message="${1:-}"
     local footer="${2:-}"
-    
+
     # ClaudeBox specific commands
     local our_commands="  profiles                        List all available profiles
   projects                        List all projects with paths
@@ -123,11 +130,11 @@ show_help() {
   slot <number>                   Launch a specific container slot
   project <name>                  Open project by name/hash from anywhere
   tmux                            Launch ClaudeBox with tmux support enabled"
-    
+
     # Check if we're in a project directory
     local project_folder_name
     project_folder_name=$(get_project_folder_name "$PROJECT_DIR" 2>/dev/null || echo "NONE")
-    
+
     if [[ "$project_folder_name" != "NONE" ]] && [[ -n "${IMAGE_NAME:-}" ]] && docker image inspect "$IMAGE_NAME" &>/dev/null; then
         # In project directory with Docker image - show brief ClaudeBox help and note about Claude commands
         echo
@@ -185,11 +192,13 @@ show_help() {
 show_claude_help() {
     if [[ -n "${IMAGE_NAME:-}" ]] && docker image inspect "$IMAGE_NAME" &>/dev/null; then
         # Get Claude's help and just change claude to claudebox in the header
-        local claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
-        
+        local claude_help
+        claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
+
         # Just change claude to claudebox in the first line
-        local processed_help=$(echo "$claude_help" | sed '1s/claude/claudebox/g')
-        
+        local processed_help
+        processed_help=$(echo "$claude_help" | sed '1s/claude/claudebox/g')
+
         # Output everything at once
         echo
         logo_small
@@ -204,16 +213,18 @@ show_claude_help() {
 show_full_help() {
     if [[ -n "${IMAGE_NAME:-}" ]] && docker image inspect "$IMAGE_NAME" &>/dev/null; then
         # Get Claude's help and blend our additions
-        local claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
-        
+        local claude_help
+        claude_help=$(docker run --rm "$IMAGE_NAME" claude --help 2>&1 | grep -v "iptables")
+
         # Process and combine everything in memory
-        local full_help=$(echo "$claude_help" | \
-            sed '1s/claude/claudebox/g' | \
+        local full_help
+        full_help=$(echo "$claude_help" |
+            sed '1s/claude/claudebox/g' |
             sed '/^Commands:/i\
   --verbose                        Show detailed output\
   --enable-sudo                    Enable sudo without password\
   --disable-firewall               Disable network restrictions\
-' | \
+' |
             sed '$ a\
   profiles                        List all available profiles\
   projects                        List all projects with paths\
@@ -232,7 +243,7 @@ show_full_help() {
   slot <number>                   Launch a specific container slot\
   project <name>                  Open project by name/hash from anywhere\
   tmux                            Launch ClaudeBox with tmux support enabled')
-        
+
         # Output everything at once
         echo
         logo_small
@@ -254,63 +265,64 @@ _forward_to_container() {
 # ============================================================================
 # Routes commands to their handlers based on the parsed CLI_SCRIPT_COMMAND
 dispatch_command() {
-    local cmd="${1:-}"; shift || true
+    local cmd="${1:-}"
+    shift || true
     if [[ "$VERBOSE" == "true" ]]; then
-        echo "[DEBUG] dispatch_command called with: cmd='$cmd' remaining args='$@'" >&2
+        echo "[DEBUG] dispatch_command called with: cmd='$cmd' remaining args='$*'" >&2
     fi
-    
-    case "${cmd}" in
+
+    case "$cmd" in
         # Core commands
-        help|-h|--help)   _cmd_help "$@" ;;
-        shell)            _cmd_shell "$@" ;;
-        update)           _cmd_update "$@" ;;
-        
+        help | -h | --help) _cmd_help "$@" ;;
+        shell) _cmd_shell "$@" ;;
+        update) _cmd_update "$@" ;;
+
         # Profile commands
-        profiles)         _cmd_profiles "$@" ;;
-        profile)          _cmd_profile "$@" ;;
-        add)              _cmd_add "$@" ;;
-        remove)           _cmd_remove "$@" ;;
-        install)          _cmd_install "$@" ;;
-        
+        profiles) _cmd_profiles "$@" ;;
+        profile) _cmd_profile "$@" ;;
+        add) _cmd_add "$@" ;;
+        remove) _cmd_remove "$@" ;;
+        install) _cmd_install "$@" ;;
+
         # Slot commands
-        create)           _cmd_create "$@" ;;
-        slots)            _cmd_slots "$@" ;;
-        slot)             _cmd_slot "$@" ;;
-        revoke)           _cmd_revoke "$@" ;;
-        kill)             _cmd_kill "$@" ;;
-        
+        create) _cmd_create "$@" ;;
+        slots) _cmd_slots "$@" ;;
+        slot) _cmd_slot "$@" ;;
+        revoke) _cmd_revoke "$@" ;;
+        kill) _cmd_kill "$@" ;;
+
         # Info commands
-        projects)         _cmd_projects "$@" ;;
-        allowlist)        _cmd_allowlist "$@" ;;
-        info)             _cmd_info "$@" ;;
-        
+        projects) _cmd_projects "$@" ;;
+        allowlist) _cmd_allowlist "$@" ;;
+        info) _cmd_info "$@" ;;
+
         # Clean commands
-        clean)            _cmd_clean "$@" ;;
-        undo)             _cmd_undo "$@" ;;
-        redo)             _cmd_redo "$@" ;;
-        
+        clean) _cmd_clean "$@" ;;
+        undo) _cmd_undo "$@" ;;
+        redo) _cmd_redo "$@" ;;
+
         # System commands
-        save)             _cmd_save "$@" ;;
-        unlink)           _cmd_unlink "$@" ;;
-        rebuild)          _cmd_rebuild "$@" ;;
-        tmux)             _cmd_tmux "$@" ;;
-        project)          _cmd_project "$@" ;;
-        import)           _cmd_import "$@" ;;
-        kill)             _cmd_kill "$@" ;;
-        
+        save) _cmd_save "$@" ;;
+        unlink) _cmd_unlink "$@" ;;
+        rebuild) _cmd_rebuild "$@" ;;
+        tmux) _cmd_tmux "$@" ;;
+        project) _cmd_project "$@" ;;
+        import) _cmd_import "$@" ;;
+
         # Special commands that modify container
-        config|mcp|migrate-installer) 
-                          _cmd_special "$cmd" "$@" ;;
-        
+        config | mcp | migrate-installer)
+            _cmd_special "$cmd" "$@"
+            ;;
+
         # Unknown command - forward to Claude in container
-        *)                _forward_to_container "${cmd}" "$@" ;;
+        *) _forward_to_container "$cmd" "$@" ;;
     esac
-    
+
     local exit_code=$?
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[DEBUG] dispatch_command returning with exit code: $exit_code" >&2
     fi
-    return $exit_code
+    return "$exit_code"
 }
 
 # Export all public functions
