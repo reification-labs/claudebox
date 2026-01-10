@@ -392,6 +392,123 @@ ClaudeBox creates a per-project Debian-based Docker image with:
 - Profile-specific development tools with intelligent layer caching
 - Persistent project state (auth, history, configs)
 
+## 🔍 Shell Script Linting
+
+ClaudeBox shell scripts are linted with ShellCheck. Here's the workflow for fixing linting issues:
+
+### Quick Check
+
+```bash
+# Run the same check CI uses
+shellcheck -x --severity=warning main.sh lib/*.sh
+
+# Check a single file with all warnings (including info level)
+shellcheck -x lib/commands.sh
+```
+
+### Recommended Tools
+
+Install these tools for comprehensive shell script maintenance:
+
+```bash
+# macOS
+brew install shellcheck shfmt shellharden
+
+# Ubuntu/Debian
+sudo apt-get install shellcheck
+# shfmt: download from https://github.com/mvdan/sh/releases
+# shellharden: cargo install shellharden
+```
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| **shellcheck** | Linter - finds bugs and issues | Always run first |
+| **shfmt** | Formatter - fixes indentation/whitespace | Before other fixes |
+| **shellharden** | Auto-fixes quoting issues | After fixing word-splitting patterns |
+
+### Fixing Common Issues
+
+#### SC2155: Declare and assign separately
+
+```bash
+# Bad - masks return value
+local foo=$(some_command)
+
+# Good - preserves exit code
+local foo
+foo=$(some_command)
+```
+
+**Exception**: `readonly` variables cannot be split (must use directive):
+```bash
+# shellcheck disable=SC2155 # readonly vars must be assigned at declaration
+readonly SCRIPT_PATH="$(get_script_path)"
+```
+
+#### SC2034: Unused variable (false positives)
+
+Variables used dynamically (via `eval`, indirect reference, or exported for subshells) trigger false positives:
+```bash
+# shellcheck disable=SC2034 # Used via indirect reference
+local config_value="$1"
+```
+
+#### Word-Splitting Patterns
+
+Before running `shellharden`, refactor intentional word-splitting:
+
+```bash
+# Bad - relies on word splitting (shellharden will break this)
+for item in $(get_items); do
+
+# Good - explicit line-by-line reading
+while IFS= read -r item; do
+    # ...
+done < <(get_items)
+
+# Or use readarray for bash 4+
+readarray -t items < <(get_items)
+```
+
+### Recommended Workflow
+
+```bash
+# 1. Format first (4-space indent, case statement indent)
+shfmt -i 4 -ci -w lib/*.sh main.sh
+
+# 2. Fix word-splitting patterns manually (see above)
+
+# 3. Apply shellharden quoting fixes (safe after step 2)
+shellharden --replace lib/*.sh main.sh
+
+# 4. Fix SC2155 (we have a script for this)
+python scripts/fix_sc2155.py lib/*.sh main.sh
+
+# 5. Add directives for remaining false positives
+# Use line-level directives with explanatory comments
+```
+
+### Directive Placement
+
+Directives must be on the line they apply to:
+
+```bash
+# For single-line declarations:
+# shellcheck disable=SC2034 # Reason here
+local unused_var="value"
+
+# For split declaration/assignment, put on the ASSIGNMENT line:
+local my_var
+# shellcheck disable=SC2034 # Reason here
+my_var=$(some_command)
+```
+
+### CI Configuration
+
+CI uses `--severity=warning` to skip info-level suggestions:
+- **error/warning**: Real issues that should be fixed
+- **info**: Suggestions like "use find instead of ls" - often too pedantic
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
