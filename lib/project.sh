@@ -631,8 +631,21 @@ sync_commands_to_project() {
     fi
 }
 
+# ============================================================================
+# Profile Directory Functions (Phase 2: Project-Local State)
+# ============================================================================
+
+# Get the profile directory path (project-local, not in ~/.claudebox)
+# Usage: get_profile_dir [profile_name]
+# Returns: $PROJECT_DIR/.claudebox/profiles/<profile_name>
+get_profile_dir() {
+    local profile_name="${1:-default}"
+    echo "$PROJECT_DIR/.claudebox/profiles/$profile_name"
+}
+
 # Export all functions
 export -f crc32_word crc32_string crc32_file
+export -f get_profile_dir
 export -f slugify_path generate_container_name generate_parent_folder_name get_parent_dir
 export -f init_project_dir init_slot_dir
 export -f read_counter write_counter
