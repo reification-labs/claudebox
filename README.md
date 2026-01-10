@@ -24,13 +24,15 @@ The Ultimate Claude Code Docker Development Environment - Run Claude AI's coding
 
 ## 🚀 What's New in Latest Update
 
+- **Named Profiles**: `claudebox profile <name>` - Run multiple named Claude sessions per project
+- **Project-Local State**: All profile data stored in `$PROJECT/.claudebox/profiles/` for better isolation
+- **Security Enhancement**: Global config (`~/.claudebox/`) is now mounted read-only in container
+- **Migration System**: `claudebox migrate` automatically converts old global structure to new local profiles
+- **Subcommand Routers**: `claudebox env <cmd>` and `claudebox profile <cmd>` for better organization
+- **Backward Compatibility**: Old commands (`slots`, `create`, `slot N`) still work with deprecation warnings
 - **Enhanced UI/UX**: Improved menu alignment and comprehensive info display
-- **New `profiles` Command**: Quick listing of all available profiles with descriptions
 - **Firewall Management**: New `allowlist` command to view/edit network allowlists
 - **Per-Project Isolation**: Separate Docker images, auth state, history, and configs
-- **Improved Clean Menu**: Clear descriptions showing exact paths that will be removed
-- **Profile Management Menu**: Interactive profile command with status and examples
-- **Persistent Project Data**: Auth state, shell history, and tool configs preserved
 - **Smart Profile Dependencies**: Automatic dependency resolution (e.g., C includes build-tools)
 
 ## ✨ Features
@@ -154,59 +156,64 @@ claudebox --help        # Shows Claude help with ClaudeBox additions
 
 ### Multi-Instance Support
 
-ClaudeBox supports running multiple instances in different projects simultaneously:
+ClaudeBox supports running multiple named profiles in the same project:
 
 ```bash
-# Terminal 1 - Project A
-cd ~/projects/website
+# Terminal 1 - Default profile
+cd ~/projects/myapp
 claudebox
 
-# Terminal 2 - Project B
-cd ~/projects/api
-claudebox shell
+# Terminal 2 - Frontend profile (same project)
+cd ~/projects/myapp
+claudebox profile create frontend
+claudebox profile run frontend
 
-# Terminal 3 - Project C
-cd ~/projects/ml-model
-claudebox profile python ml
+# Terminal 3 - Backend profile (same project)
+cd ~/projects/myapp
+claudebox profile create backend
+claudebox profile run backend
 ```
 
-Each project maintains its own:
-- Docker image (`claudebox-<project-name>`)
-- Language profiles and installed packages
-- Firewall allowlist
-- Python virtual environment
-- Memory and context (via MCP)
-- Claude configuration (`.claude.json`)
+Each profile maintains its own:
+- Authentication state (`.claude/`)
+- Tool configurations (`.config/`)
+- Python virtual environment (`.venv/`)
+- Claude settings (`.claude.json`)
 
-### Development Profiles
+Each project also maintains:
+- Docker image (`claudebox-<project-name>`)
+- Development environment profiles (python, rust, etc.)
+- Firewall allowlist (global)
+
+### Development Environments
 
 ClaudeBox includes 15+ pre-configured development environments:
 
 ```bash
-# List all available profiles with descriptions
-claudebox profiles
+# List all available development environments
+claudebox env list
 
-# Interactive profile management menu
-claudebox profile
+# Add development environments to your project
+claudebox env add python ml       # Python + Machine Learning
+claudebox env add c openwrt       # C/C++ + OpenWRT
+claudebox env add rust go         # Rust + Go
 
-# Check current project's profiles
-claudebox profile status
+# Remove environments
+claudebox env remove rust
 
-# Install specific profiles (project-specific)
-claudebox profile python ml       # Python + Machine Learning
-claudebox profile c openwrt       # C/C++ + OpenWRT
-claudebox profile rust go         # Rust + Go
+# Install additional apt packages
+claudebox env install htop vim
 ```
 
-#### Available Profiles:
+#### Available Environments:
 
-**Core Profiles:**
+**Core:**
 - **core** - Core Development Utilities (compilers, VCS, shell tools)
 - **build-tools** - Build Tools (CMake, autotools, Ninja)
 - **shell** - Optional Shell Tools (fzf, SSH, man, rsync, file)
 - **networking** - Network Tools (IP stack, DNS, route tools)
 
-**Language Profiles:**
+**Languages:**
 - **c** - C/C++ Development (debuggers, analyzers, Boost, ncurses, cmocka)
 - **rust** - Rust Development (installed via rustup)
 - **python** - Python Development (managed via uv)
@@ -217,7 +224,7 @@ claudebox profile rust go         # Rust + Go
 - **ruby** - Ruby Development (gems, native deps, XML/YAML)
 - **php** - PHP Development (PHP + extensions + Composer)
 
-**Specialized Profiles:**
+**Specialized:**
 - **openwrt** - OpenWRT Development (cross toolchain, QEMU, distro tools)
 - **database** - Database Tools (clients for major databases)
 - **devops** - DevOps Tools (Docker, Kubernetes, Terraform, etc.)
@@ -226,6 +233,30 @@ claudebox profile rust go         # Rust + Go
 - **datascience** - Data Science (Python, Jupyter, R)
 - **security** - Security Tools (scanners, crackers, packet tools)
 - **ml** - Machine Learning (build layer only; Python via uv)
+
+### Container Profiles
+
+Manage multiple authenticated Claude sessions per project:
+
+```bash
+# List all profiles for the current project
+claudebox profile list
+
+# Create a new named profile
+claudebox profile create frontend
+
+# Run a specific profile
+claudebox profile run 1           # Run by number
+claudebox profile run frontend    # Run by name (coming soon)
+
+# Remove profiles
+claudebox profile remove          # Remove the highest numbered profile
+claudebox profile remove all      # Remove all profiles
+
+# Kill running containers
+claudebox profile kill            # Show running containers
+claudebox profile kill all        # Kill all containers for this project
+```
 
 ### Default Flags Management
 
@@ -263,8 +294,8 @@ The info command displays:
 ### Package Management
 
 ```bash
-# Install additional packages (project-specific)
-claudebox install htop vim tmux
+# Install additional apt packages
+claudebox env install htop vim tmux
 
 # Open a powerline zsh shell in the container
 claudebox shell
@@ -274,6 +305,9 @@ claudebox update
 
 # View/edit firewall allowlist
 claudebox allowlist
+
+# View/edit custom volume mounts
+claudebox mount
 ```
 
 ### Tmux Integration
@@ -349,26 +383,42 @@ claudebox rebuild
 
 ## 🔧 Configuration
 
-ClaudeBox stores data in:
+ClaudeBox uses a secure two-tier configuration model:
+
+### Global Configuration (`~/.claudebox/`)
+Mounted **read-only** in the container for security:
+- `mounts` - Custom volume mount definitions
+- `allowlist` - Network firewall allowlist
+- `profiles.ini` - Development environment profiles (python, rust, etc.)
+- `common.sh` - Shared utilities
+
+### Project-Local Profiles (`$PROJECT/.claudebox/profiles/`)
+Each project stores its runtime state locally with named profiles:
+```
+$PROJECT/.claudebox/profiles/
+├── default/                # First profile (auto-created)
+│   ├── .claude/            # Claude auth state & config
+│   ├── .config/            # Tool configurations
+│   ├── .cache/             # Cache data
+│   └── .venv/              # Python venv (if python profile)
+├── frontend/               # Additional named profile
+│   └── ...                 # Each profile is fully isolated
+└── backend/
+    └── ...
+```
+
+### Other Locations
 - `~/.claude/` - Global Claude configuration (mounted read-only)
-- `~/.claudebox/` - Global ClaudeBox data
-- `~/.claudebox/profiles/` - Per-project profile configurations (*.ini files)
-- `~/.claudebox/<project-name>/` - Project-specific data:
-  - `.claude/` - Project auth state
-  - `.claude.json` - Project API configuration
-  - `.zsh_history` - Shell history
-  - `.config/` - Tool configurations
-  - `firewall/allowlist` - Network allowlist
 - Current directory mounted as `/workspace` in container
 
 ### Project-Specific Features
 
 Each project automatically gets:
-- **Docker Image**: `claudebox-<project-name>` with installed profiles
-- **Profile Configuration**: `~/.claudebox/profiles/<project-name>.ini`
-- **Python Virtual Environment**: `.venv` created with uv when Python profile is active
-- **Firewall Allowlist**: Customizable per-project network access rules
-- **Claude Configuration**: Project-specific `.claude.json` settings
+- **Docker Image**: `claudebox-<project-name>` with installed dev environments
+- **Named Profiles**: Run multiple authenticated Claude sessions in parallel
+- **Python Virtual Environment**: Profile-specific `.venv` with uv
+- **Firewall Allowlist**: Customizable network access rules (global)
+- **Claude Configuration**: Profile-specific `.claude.json` settings
 
 ### Environment Variables
 

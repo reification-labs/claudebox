@@ -15,17 +15,16 @@ echo
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Check Docker is available
-if ! command -v docker &> /dev/null; then
+if ! command -v docker &>/dev/null; then
     echo -e "${RED}Docker not found. Skipping integration tests.${NC}"
     exit 0
 fi
 
 # Check Docker is running
-if ! docker info &> /dev/null; then
+if ! docker info &>/dev/null; then
     echo -e "${RED}Docker daemon not running. Skipping integration tests.${NC}"
     exit 0
 fi
@@ -37,7 +36,7 @@ TESTS_PASSED=0
 # Setup
 TEMP_DIR=$(mktemp -d)
 TEST_FILE="$TEMP_DIR/test_file.txt"
-echo "original content" > "$TEST_FILE"
+echo "original content" >"$TEST_FILE"
 
 # Cleanup on exit
 cleanup() {
@@ -131,13 +130,61 @@ test_rw_allows_write() {
         sh -c 'echo "modified by docker" > /test/rw_test.txt'
 
     # Verify file was created on host
-    [[ -f "$TEMP_DIR/rw_test.txt" ]] && \
-    [[ "$(cat "$TEMP_DIR/rw_test.txt")" == "modified by docker" ]]
+    [[ -f "$TEMP_DIR/rw_test.txt" ]] &&
+        [[ "$(cat "$TEMP_DIR/rw_test.txt")" == "modified by docker" ]]
 }
 run_test "Read-write mount allows file creation" test_rw_allows_write
 
 echo
-echo "3. Verifying original file unchanged after :ro tests"
+echo "3. Testing global config read-only (ClaudeBox security)"
+echo "--------------------------------------------------------"
+
+# Setup global config simulation
+GLOBAL_CONFIG_DIR=$(mktemp -d)
+echo "mounts_content_here" >"$GLOBAL_CONFIG_DIR/mounts"
+echo "allowlist_content" >"$GLOBAL_CONFIG_DIR/allowlist"
+
+# Test: Global config mounts file cannot be modified
+test_global_mounts_readonly() {
+    local output
+    output=$(docker run --rm \
+        -v "$GLOBAL_CONFIG_DIR:/home/testuser/.claudebox:ro" \
+        alpine:latest \
+        sh -c 'echo "malicious_mount" >> /home/testuser/.claudebox/mounts 2>&1' 2>&1) || true
+
+    [[ "$output" == *"Read-only"* ]] || [[ "$output" == *"read-only"* ]] || [[ "$output" == *"EROFS"* ]]
+}
+run_test "Global config mounts file is read-only" test_global_mounts_readonly
+
+# Test: Global config allowlist cannot be modified
+test_global_allowlist_readonly() {
+    local output
+    output=$(docker run --rm \
+        -v "$GLOBAL_CONFIG_DIR:/home/testuser/.claudebox:ro" \
+        alpine:latest \
+        sh -c 'echo "ALLOW_ALL" >> /home/testuser/.claudebox/allowlist 2>&1' 2>&1) || true
+
+    [[ "$output" == *"Read-only"* ]] || [[ "$output" == *"read-only"* ]] || [[ "$output" == *"EROFS"* ]]
+}
+run_test "Global config allowlist is read-only" test_global_allowlist_readonly
+
+# Test: Cannot create new files in global config
+test_global_no_new_files() {
+    local output
+    output=$(docker run --rm \
+        -v "$GLOBAL_CONFIG_DIR:/home/testuser/.claudebox:ro" \
+        alpine:latest \
+        sh -c 'touch /home/testuser/.claudebox/evil_config 2>&1' 2>&1) || true
+
+    [[ "$output" == *"Read-only"* ]] || [[ "$output" == *"read-only"* ]] || [[ "$output" == *"EROFS"* ]]
+}
+run_test "Cannot create files in global config" test_global_no_new_files
+
+# Cleanup global config test dir
+rm -rf "$GLOBAL_CONFIG_DIR"
+
+echo
+echo "4. Verifying original file unchanged after :ro tests"
 echo "-----------------------------------------------------"
 
 test_original_unchanged() {
