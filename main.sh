@@ -30,7 +30,7 @@ readonly SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 # Now that script is at root, SCRIPT_DIR is the repo/install root
 readonly INSTALL_ROOT="$HOME/.claudebox"
 export SCRIPT_PATH
-export CLAUDEBOX_SCRIPT_DIR="${SCRIPT_DIR}"
+export CLAUDEBOX_SCRIPT_DIR="$SCRIPT_DIR"
 # Set PROJECT_DIR early (but allow override from environment)
 export PROJECT_DIR="${PROJECT_DIR:-$(pwd)}"
 
@@ -125,10 +125,10 @@ main() {
 
     # Step 4a: Check if this command even needs Docker
     local cmd_requirements="none"
-    if [[ -n "${CLI_SCRIPT_COMMAND}" ]]; then
+    if [[ -n "$CLI_SCRIPT_COMMAND" ]]; then
         # Pass the first pass-through arg as potential subcommand
         local first_arg="${CLI_PASS_THROUGH[0]:-}"
-        cmd_requirements=$(get_command_requirements "${CLI_SCRIPT_COMMAND}" "$first_arg")
+        cmd_requirements=$(get_command_requirements "$CLI_SCRIPT_COMMAND" "$first_arg")
     else
         # No script command means we're running claude - needs Docker
         cmd_requirements="docker"
@@ -137,7 +137,7 @@ main() {
     # If command doesn't need Docker, skip all Docker setup
     if [[ "$cmd_requirements" == "none" ]]; then
         # Dispatch the command directly and exit
-        dispatch_command "${CLI_SCRIPT_COMMAND}" "${CLI_PASS_THROUGH[@]}" "${CLI_CONTROL_FLAGS[@]}"
+        dispatch_command "$CLI_SCRIPT_COMMAND" "${CLI_PASS_THROUGH[@]}" "${CLI_CONTROL_FLAGS[@]}"
         exit $?
     fi
 
@@ -203,7 +203,7 @@ main() {
 
         # Build core image
         docker build \
-            --progress=${BUILDKIT_PROGRESS:-auto} \
+            --progress="${BUILDKIT_PROGRESS:-auto}" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg USER_ID="$USER_ID" \
             --build-arg GROUP_ID="$GROUP_ID" \
@@ -297,11 +297,11 @@ main() {
     fi
 
     # Step 9: Run pre-flight validation for commands that need Docker
-    if [[ -n "${CLI_SCRIPT_COMMAND}" ]]; then
-        local cmd_req=$(get_command_requirements "${CLI_SCRIPT_COMMAND}")
+    if [[ -n "$CLI_SCRIPT_COMMAND" ]]; then
+        local cmd_req=$(get_command_requirements "$CLI_SCRIPT_COMMAND")
         # Only run pre-flight for commands that need Docker or image
         if [[ "$cmd_req" == "docker" ]] || [[ "$cmd_req" == "image" ]]; then
-            if ! preflight_check "${CLI_SCRIPT_COMMAND}" "${CLI_PASS_THROUGH[@]}"; then
+            if ! preflight_check "$CLI_SCRIPT_COMMAND" "${CLI_PASS_THROUGH[@]}"; then
                 # Pre-flight check failed and printed error
                 exit 1
             fi
@@ -311,10 +311,10 @@ main() {
     # Step 10: Check command requirements
     local cmd_requirements="none"
 
-    if [[ -n "${CLI_SCRIPT_COMMAND}" ]]; then
+    if [[ -n "$CLI_SCRIPT_COMMAND" ]]; then
         # Pass the first pass-through arg as potential subcommand
         local first_arg="${CLI_PASS_THROUGH[0]:-}"
-        cmd_requirements=$(get_command_requirements "${CLI_SCRIPT_COMMAND}" "$first_arg")
+        cmd_requirements=$(get_command_requirements "$CLI_SCRIPT_COMMAND" "$first_arg")
     else
         # No script command means we're running claude - needs Docker
         cmd_requirements="docker"
@@ -425,10 +425,10 @@ main() {
     fi
 
     # Step 14: Single dispatch point
-    if [[ -n "${CLI_SCRIPT_COMMAND}" ]]; then
+    if [[ -n "$CLI_SCRIPT_COMMAND" ]]; then
         # Script command - dispatch on host
         # Pass control flags and pass-through args to dispatch_command
-        dispatch_command "${CLI_SCRIPT_COMMAND}" "${CLI_PASS_THROUGH[@]}" "${CLI_CONTROL_FLAGS[@]}"
+        dispatch_command "$CLI_SCRIPT_COMMAND" "${CLI_PASS_THROUGH[@]}" "${CLI_CONTROL_FLAGS[@]}"
         exit $?
     else
         # No script command - running Claude interactively
@@ -545,7 +545,7 @@ build_docker_image() {
             # Convert hyphens to underscores for function names
             local profile_fn="get_profile_${profile//-/_}"
             if type -t "$profile_fn" >/dev/null; then
-                profile_installations+=$'\n'"$($profile_fn)"
+                profile_installations+=$'\n'"$("$profile_fn")"
             fi
         done
 

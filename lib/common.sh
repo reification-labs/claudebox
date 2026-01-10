@@ -48,11 +48,11 @@ logo() {
                 continue
             }
             cc=$(printf '%d' "'$ch" 2>/dev/null || echo 0)
-            if [ $cc -ge 32 ] && [ $cc -le 126 ]; then
+            if [ "$cc" -ge 32 ] && [ "$cc" -le 126 ]; then
                 n='\033[33m' # Yellow for regular text
-            elif [ $cc -ge 9552 ] && [ $cc -le 9580 ]; then
+            elif [ "$cc" -ge 9552 ] && [ "$cc" -le 9580 ]; then
                 n='\033[34m' # Blue for box drawing
-            elif [ $cc -eq 9608 ]; then
+            elif [ "$cc" -eq 9608 ]; then
                 n='\033[31m'      # Red for block chars
             else n='\033[37m'; fi # White for others
             [ "$n" != "$c" ] && {
@@ -83,11 +83,11 @@ logo_header() {
                 continue
             }
             cc=$(printf '%d' "'$ch" 2>/dev/null || echo 0)
-            if [ $cc -ge 32 ] && [ $cc -le 126 ] && [ "$ch" != "•" ]; then
+            if [ "$cc" -ge 32 ] && [ "$cc" -le 126 ] && [ "$ch" != "•" ]; then
                 n='\033[33m' # Yellow for regular text
-            elif [ $cc -ge 9552 ] && [ $cc -le 9580 ]; then
+            elif [ "$cc" -ge 9552 ] && [ "$cc" -le 9580 ]; then
                 n='\033[34m' # Blue for box drawing
-            elif [ $cc -eq 9608 ] || [ $cc -ge 9600 ] && [ $cc -le 9631 ]; then
+            elif [ "$cc" -eq 9608 ] || [ "$cc" -ge 9600 ] && [ "$cc" -le 9631 ]; then
                 n='\033[31m' # Red for block chars (CLAUDEBOX)
             elif [ "$ch" = "•" ]; then
                 n='\033[32m'      # Green for bullets
@@ -117,7 +117,7 @@ fillbar() {
     case "${1:-}" in
         stop)
             if [ ! -z "$FILLBAR_PID" ]; then
-                kill $FILLBAR_PID 2>/dev/null
+                kill "$FILLBAR_PID" 2>/dev/null
             fi
             printf "\r\033[K"
             tput cnorm
@@ -132,11 +132,11 @@ fillbar() {
                     full=$((p / 8))
                     part=$((p % 8))
                     i=0
-                    while [ $i -lt $full ]; do
+                    while [ "$i" -lt "$full" ]; do
                         printf "█"
                         i=$((i + 1))
                     done
-                    if [ $part -gt 0 ]; then
+                    if [ "$part" -gt 0 ]; then
                         pb=$(printf %x $((0x258F - part + 1)))
                         printf "\\u$pb"
                     fi

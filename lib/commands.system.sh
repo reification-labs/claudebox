@@ -15,7 +15,7 @@ _cmd_save() {
             info "No saved default flags to clear"
         fi
     else
-        mkdir -p "${CLAUDEBOX_HOME}"
+        mkdir -p "$CLAUDEBOX_HOME"
         printf '%s\n' "$@" >"$defaults_file"
         success "Saved default flags: $*"
     fi

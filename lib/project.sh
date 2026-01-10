@@ -173,7 +173,7 @@ create_container() {
         echo "[DEBUG] creating new slot $idx: name=$name, dir=$dir" >&2
     fi
     init_slot_dir "$dir"
-    write_counter "$parent" $idx
+    write_counter "$parent" "$idx"
     echo "$name"
 }
 
@@ -271,8 +271,8 @@ get_project_folder_name() {
 
 # Get Docker image name for a specific slot
 get_image_name() {
-    local parent_folder_name=$(generate_parent_folder_name "${PROJECT_DIR}")
-    printf 'claudebox-%s' "${parent_folder_name}"
+    local parent_folder_name=$(generate_parent_folder_name "$PROJECT_DIR")
+    printf 'claudebox-%s' "$parent_folder_name"
 }
 
 # For backwards compatibility
@@ -379,8 +379,8 @@ prune_slot_counter() {
     done
 
     # Update counter if we can prune
-    if [ $highest -lt $max ]; then
-        write_counter "$parent" $highest
+    if [ "$highest" -lt "$max" ]; then
+        write_counter "$parent" "$highest"
     fi
     # Always return 0 for success
     return 0
@@ -403,7 +403,7 @@ list_project_slots() {
     logo_small
     echo
 
-    if [ $max -eq 0 ]; then
+    if [ "$max" -eq 0 ]; then
         echo "Commands:"
         printf "  %-20s %s\n" "claudebox create" "Create new slot"
         echo

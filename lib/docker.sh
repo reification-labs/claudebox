@@ -218,7 +218,7 @@ run_claudebox_container() {
     docker_args+=(
         -w /workspace
         -v "$PROJECT_DIR":/workspace
-        -v "$PROJECT_PARENT_DIR":/home/$DOCKER_USER/.claudebox
+        -v "$PROJECT_PARENT_DIR":/home/"$DOCKER_USER"/.claudebox
     )
 
     # Ensure .claude directory exists
@@ -226,18 +226,18 @@ run_claudebox_container() {
         mkdir -p "$PROJECT_SLOT_DIR/.claude"
     fi
 
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":/home/$DOCKER_USER/.claude)
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":/home/"$DOCKER_USER"/.claude)
 
     # Mount .claude.json only if it already exists (from previous session)
     if [[ -f "$PROJECT_SLOT_DIR/.claude.json" ]]; then
-        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":/home/$DOCKER_USER/.claude.json)
+        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":/home/"$DOCKER_USER"/.claude.json)
     fi
 
     # Mount .config directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":/home/$DOCKER_USER/.config)
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":/home/"$DOCKER_USER"/.config)
 
     # Mount .cache directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":/home/$DOCKER_USER/.cache)
+    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":/home/"$DOCKER_USER"/.cache)
 
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
@@ -267,7 +267,7 @@ run_claudebox_container() {
         local temp_file="$2"
 
         # Create temporary file with unique name
-        local mcp_file=$(mktemp /tmp/claudebox-mcp-$(date +%s)-$$.json 2>/dev/null || mktemp)
+        local mcp_file=$(mktemp /tmp/claudebox-mcp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
         mcp_temp_files+=("$mcp_file")
 
         # Extract mcpServers if they exist
@@ -333,7 +333,7 @@ run_claudebox_container() {
 
     # Create project MCP config file by merging project configs
     # Start with empty config file for merging
-    local temp_project_file=$(mktemp /tmp/claudebox-project-temp-$(date +%s)-$$.json 2>/dev/null || mktemp)
+    local temp_project_file=$(mktemp /tmp/claudebox-project-temp-"$(date +%s)-$$".json 2>/dev/null || mktemp)
     mcp_temp_files+=("$temp_project_file")
     echo '{"mcpServers":{}}' >"$temp_project_file"
 
@@ -407,7 +407,7 @@ run_claudebox_container() {
     docker run "${docker_args[@]}"
     local exit_code=$?
 
-    return $exit_code
+    return "$exit_code"
 }
 
 check_container_exists() {
@@ -438,8 +438,8 @@ run_docker_build() {
     fi
 
     docker build \
-        $no_cache_flag \
-        --progress=${BUILDKIT_PROGRESS:-auto} \
+        "$no_cache_flag" \
+        --progress="${BUILDKIT_PROGRESS:-auto}" \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
         --build-arg USER_ID="$USER_ID" \
         --build-arg GROUP_ID="$GROUP_ID" \

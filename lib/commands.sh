@@ -260,7 +260,7 @@ dispatch_command() {
         echo "[DEBUG] dispatch_command called with: cmd='$cmd' remaining args='$@'" >&2
     fi
 
-    case "${cmd}" in
+    case "$cmd" in
         # Core commands
         help | -h | --help) _cmd_help "$@" ;;
         shell) _cmd_shell "$@" ;;
@@ -305,14 +305,14 @@ dispatch_command() {
             ;;
 
         # Unknown command - forward to Claude in container
-        *) _forward_to_container "${cmd}" "$@" ;;
+        *) _forward_to_container "$cmd" "$@" ;;
     esac
 
     local exit_code=$?
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[DEBUG] dispatch_command returning with exit code: $exit_code" >&2
     fi
-    return $exit_code
+    return "$exit_code"
 }
 
 # Export all public functions

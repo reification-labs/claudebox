@@ -97,7 +97,7 @@ _cmd_revoke() {
         echo "[DEBUG] max=$max" >&2
     fi
 
-    if [ $max -eq 0 ]; then
+    if [ "$max" -eq 0 ]; then
         echo "No slots to revoke"
         return 0
     fi
@@ -170,7 +170,7 @@ _cmd_revoke() {
         if [[ "$VERBOSE" == "true" ]]; then
             echo "[DEBUG] removed_count=$removed_count, existing_count=$existing_count" >&2
         fi
-        if [ $removed_count -eq $existing_count ]; then
+        if [ "$removed_count" -eq "$existing_count" ]; then
             if [[ "$VERBOSE" == "true" ]]; then
                 echo "[DEBUG] Setting counter to 0" >&2
             fi
