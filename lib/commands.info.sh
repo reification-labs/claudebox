@@ -317,17 +317,22 @@ Example: claudebox mount remove /workspace/.vault/name"
                 error "No mounts configured for this project"
             fi
 
-            # Find and remove the mount
+            # Find and remove the mount (exact field match, not substring)
             local found=false
             local temp_file=$(mktemp)
             while IFS= read -r line; do
                 if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
                     echo "$line" >> "$temp_file"
-                elif [[ "$line" == *":${target}:"* ]]; then
-                    found=true
-                    info "Removing: $line"
                 else
-                    echo "$line" >> "$temp_file"
+                    # Parse line and check container_path (field 2) exactly
+                    local line_container_path
+                    IFS=':' read -r _ line_container_path _ <<< "$line"
+                    if [[ "$line_container_path" == "$target" ]]; then
+                        found=true
+                        info "Removing: $line"
+                    else
+                        echo "$line" >> "$temp_file"
+                    fi
                 fi
             done < "$mounts_file"
 
