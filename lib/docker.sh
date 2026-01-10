@@ -251,6 +251,22 @@ run_claudebox_container() {
                 local host_path container_path mode
                 IFS=':' read -r host_path container_path mode <<< "$line"
 
+                # Validate all fields are non-empty
+                if [[ -z "$host_path" || -z "$container_path" || -z "$mode" ]]; then
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Skipping malformed mount (empty field): $line" >&2
+                    fi
+                    continue
+                fi
+
+                # Validate mode is ro or rw
+                if [[ "$mode" != "ro" && "$mode" != "rw" ]]; then
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Skipping mount (invalid mode '$mode'): $line" >&2
+                    fi
+                    continue
+                fi
+
                 # Expand ~ in host path
                 host_path="${host_path/#\~/$HOME}"
 
