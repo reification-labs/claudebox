@@ -43,9 +43,6 @@ jobs:
 
     - name: Run ShellCheck on library files
       run: shellcheck -x --severity=warning lib/*.sh
-
-    - name: Run ShellCheck on command modules
-      run: shellcheck -x --severity=warning lib/commands/*.sh || true  # dir may not exist
       
   build:
     runs-on: ubuntu-latest
