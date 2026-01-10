@@ -24,7 +24,7 @@ The Ultimate Claude Code Docker Development Environment - Run Claude AI's coding
 
 ## 🚀 What's New in Latest Update
 
-- **Named Profiles**: `claudebox profile <name>` - Run multiple named Claude sessions per project
+- **Named Profiles**: `claudebox profile create <name>` - Run multiple named Claude sessions per project
 - **Project-Local State**: All profile data stored in `$PROJECT/.claudebox/profiles/` for better isolation
 - **Security Enhancement**: Global config (`~/.claudebox/`) is now mounted read-only in container
 - **Migration System**: `claudebox migrate` automatically converts old global structure to new local profiles
@@ -163,12 +163,12 @@ ClaudeBox supports running multiple named profiles in the same project:
 cd ~/projects/myapp
 claudebox
 
-# Terminal 2 - Frontend profile (same project)
+# Terminal 2 - Create and run frontend profile
 cd ~/projects/myapp
 claudebox profile create frontend
 claudebox profile run frontend
 
-# Terminal 3 - Backend profile (same project)
+# Terminal 3 - Create and run backend profile
 cd ~/projects/myapp
 claudebox profile create backend
 claudebox profile run backend
@@ -242,20 +242,23 @@ Manage multiple authenticated Claude sessions per project:
 # List all profiles for the current project
 claudebox profile list
 
-# Create a new named profile
-claudebox profile create frontend
+# Create profiles (defaults to 'default' if no name given)
+claudebox profile create           # Creates 'default' profile
+claudebox profile create frontend  # Creates 'frontend' profile
+claudebox profile create backend   # Creates 'backend' profile
 
-# Run a specific profile
-claudebox profile run 1           # Run by number
-claudebox profile run frontend    # Run by name (coming soon)
+# Run a profile (defaults to 'default' if no name given)
+claudebox profile run              # Run 'default' profile
+claudebox profile run frontend     # Run 'frontend' profile
 
 # Remove profiles
-claudebox profile remove          # Remove the highest numbered profile
-claudebox profile remove all      # Remove all profiles
+claudebox profile remove frontend  # Remove specific profile
+claudebox profile remove all       # Remove all profiles
 
 # Kill running containers
-claudebox profile kill            # Show running containers
-claudebox profile kill all        # Kill all containers for this project
+claudebox profile kill             # Show running containers
+claudebox profile kill frontend    # Kill specific container
+claudebox profile kill all         # Kill all containers for this project
 ```
 
 ### Default Flags Management
