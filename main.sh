@@ -235,6 +235,11 @@ main() {
         fi
     fi
 
+    # Check for old structure that needs migration
+    if has_old_structure; then
+        prompt_migration
+    fi
+
     # If running from installer, show appropriate message and exit
     if [[ "${CLAUDEBOX_INSTALLER_RUN:-}" == "true" ]]; then
         # Check if this is first install or update

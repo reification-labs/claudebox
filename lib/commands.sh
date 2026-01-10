@@ -73,6 +73,14 @@ source "${LIB_DIR}/commands.clean.sh"
 source "${LIB_DIR}/commands.system.sh"
 
 # ============================================================================
+# MIGRATION - Migrate from old global to new project-local structure
+# ============================================================================
+# Commands: migrate
+# - migrate: Migrate old ~/.claudebox/projects/ to $PROJECT/.claudebox/profiles/
+# shellcheck source=migrate.sh
+source "${LIB_DIR}/migrate.sh"
+
+# ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
@@ -310,6 +318,49 @@ dispatch_command() {
         tmux) _cmd_tmux "$@" ;;
         project) _cmd_project "$@" ;;
         import) _cmd_import "$@" ;;
+
+        # Migration
+        migrate) _cmd_migrate "$@" ;;
+
+        # Backward compatibility aliases (deprecated slot commands)
+        slots)
+            warn "Note: 'claudebox slots' is deprecated. Use 'claudebox profile list' instead."
+            _cmd_profile list "$@"
+            ;;
+        slot)
+            warn "Note: 'claudebox slot' is deprecated. Use 'claudebox profile run' instead."
+            _cmd_profile run "$@"
+            ;;
+        create)
+            warn "Note: 'claudebox create' is deprecated. Use 'claudebox profile create' instead."
+            _cmd_profile create "$@"
+            ;;
+        revoke)
+            warn "Note: 'claudebox revoke' is deprecated. Use 'claudebox profile remove' instead."
+            _cmd_profile remove "$@"
+            ;;
+        kill)
+            warn "Note: 'claudebox kill' is deprecated. Use 'claudebox profile kill' instead."
+            _cmd_profile kill "$@"
+            ;;
+
+        # Backward compatibility aliases (deprecated dev profile commands)
+        profiles)
+            warn "Note: 'claudebox profiles' is deprecated. Use 'claudebox env list' instead."
+            _cmd_env list "$@"
+            ;;
+        add)
+            warn "Note: 'claudebox add' is deprecated. Use 'claudebox env add' instead."
+            _cmd_env add "$@"
+            ;;
+        remove)
+            warn "Note: 'claudebox remove' is deprecated. Use 'claudebox env remove' instead."
+            _cmd_env remove "$@"
+            ;;
+        install)
+            warn "Note: 'claudebox install' is deprecated. Use 'claudebox env install' instead."
+            _cmd_env install "$@"
+            ;;
 
         # Special commands that modify container
         config | mcp | migrate-installer)
