@@ -41,7 +41,7 @@ _cmd_allowlist() {
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^#.* ]]; then
                 echo "  $line"
             fi
-        done < "$allowlist_file"
+        done <"$allowlist_file"
         echo
     else
         cecho "Allowlist file:" "$YELLOW"
@@ -94,7 +94,7 @@ _cmd_info() {
         local saved_flags=()
         while IFS= read -r flag; do
             [[ -n "$flag" ]] && saved_flags+=("$flag")
-        done < "$HOME/.claudebox/default-flags"
+        done <"$HOME/.claudebox/default-flags"
         if [[ ${#saved_flags[@]} -gt 0 ]]; then
             echo -e "   Flags: ${GREEN}${saved_flags[*]}${NC}"
         else
@@ -220,7 +220,7 @@ _cmd_info() {
         echo "   System:"
         while IFS=$'\t' read -r type total active size reclaim; do
             echo "               - $type: $total total, $active active ($size, $reclaim reclaimable)"
-        done <<< "$docker_stats"
+        done <<<"$docker_stats"
     fi
     echo
 

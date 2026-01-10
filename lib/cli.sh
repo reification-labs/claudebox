@@ -21,16 +21,16 @@ readonly SCRIPT_COMMANDS=(shell create slot slots revoke profiles projects profi
 # Note: Each argument goes into exactly ONE bucket - no duplication
 parse_cli_args() {
     local all_args=("$@")
-    
+
     # Initialize bucket arrays
     host_flags=()
     control_flags=()
     script_command=""
     pass_through=()
-    
+
     # Single parsing loop - each arg goes into exactly ONE bucket
     local found_script_command=false
-    
+
     for arg in "${all_args[@]}"; do
         if [[ " ${HOST_ONLY_FLAGS[*]} " == *" $arg "* ]]; then
             # Bucket 1: Host-only flags
@@ -47,7 +47,7 @@ parse_cli_args() {
             pass_through+=("$arg")
         fi
     done
-    
+
     # Export results for use by main script
     export CLI_HOST_FLAGS=("${host_flags[@]}")
     export CLI_CONTROL_FLAGS=("${control_flags[@]}")
@@ -79,18 +79,18 @@ process_host_flags() {
 get_command_requirements() {
     local cmd="${1:-}"
     local subcommand="${2:-}"
-    
+
     case "$cmd" in
         # Pure host commands - no Docker or image needed
-        profiles|projects|help|-h|--help|slots|create|revoke|clean|import|unlink|kill)
+        profiles | projects | help | -h | --help | slots | create | revoke | clean | import | unlink | kill)
             echo "none"
             ;;
         # Commands that need image name but not Docker
-        info|profile|add|remove|install|allowlist|save)
+        info | profile | add | remove | install | allowlist | save)
             echo "image"
             ;;
         # Commands that need Docker and will run containers
-        shell|project|rebuild|update|config|mcp|migrate-installer|tmux|slot|"")
+        shell | project | rebuild | update | config | mcp | migrate-installer | tmux | slot | "")
             echo "docker"
             ;;
         # Unknown commands are forwarded to Claude in container
@@ -110,14 +110,14 @@ requires_docker_image() {
 # Check if current command requires a slot
 requires_slot() {
     local cmd="${1:-}"
-    
+
     # Commands that need a slot
     case "$cmd" in
-        shell|update|config|mcp|migrate-installer|create|slot|"")
-            return 0  # true - needs slot
+        shell | update | config | mcp | migrate-installer | create | slot | "")
+            return 0 # true - needs slot
             ;;
         *)
-            return 1  # false - doesn't need slot
+            return 1 # false - doesn't need slot
             ;;
     esac
 }

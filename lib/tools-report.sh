@@ -6,7 +6,7 @@
 generate_tools_report() {
     local profiles_ini="/home/claude/.claudebox/profiles.ini"
     local output_file="/home/claude/.claudebox/tooling.md"
-    
+
     # Start the markdown document
     {
         # Check if profiles.ini exists
@@ -22,12 +22,12 @@ generate_tools_report() {
                     in_profiles_section=false
                     continue
                 fi
-                
+
                 if [[ "$in_profiles_section" == true ]] && [[ -n "$line" ]]; then
                     profiles+=("$line")
                 fi
-            done < "$profiles_ini"
-            
+            done <"$profiles_ini"
+
             if [[ ${#profiles[@]} -gt 0 ]]; then
                 echo "## Active Development Profiles"
                 echo
@@ -43,7 +43,7 @@ generate_tools_report() {
                 echo "No development profiles are currently active."
                 echo
             fi
-            
+
             # Check for custom packages
             local packages=()
             local in_packages_section=false
@@ -55,12 +55,12 @@ generate_tools_report() {
                     in_packages_section=false
                     continue
                 fi
-                
+
                 if [[ "$in_packages_section" == true ]] && [[ -n "$line" ]]; then
                     packages+=("$line")
                 fi
-            done < "$profiles_ini"
-            
+            done <"$profiles_ini"
+
             if [[ ${#packages[@]} -gt 0 ]]; then
                 echo "## Additional Packages"
                 echo
@@ -77,7 +77,7 @@ generate_tools_report() {
             echo "No profiles.ini found - using default ClaudeBox environment."
             echo
         fi
-        
+
         # Always installed tools
         echo "## Core Tools (Always Available)"
         echo
@@ -100,7 +100,7 @@ generate_tools_report() {
         echo "- **tree** - Display directory structure"
         echo "- **unzip/zip** - Archive management"
         echo
-        
+
         # Footer
         echo "---"
         echo
@@ -116,15 +116,15 @@ generate_tools_report() {
         echo '```'
         echo
         echo "This document is automatically generated based on your project's profiles.ini configuration."
-    } > "$output_file"
-    
+    } >"$output_file"
+
     echo "Developer README generated at: $output_file"
 }
 
 # Describe what each profile provides
 _describe_profile() {
     local profile="$1"
-    
+
     case "$profile" in
         core)
             echo "**Core Development Utilities**"
@@ -136,7 +136,7 @@ _describe_profile() {
             echo "- OpenSSL and zlib development libraries"
             echo
             ;;
-            
+
         build-tools)
             echo "**Build and Automation Tools**"
             echo
@@ -147,7 +147,7 @@ _describe_profile() {
             echo "- Libtool - Generic library support script"
             echo
             ;;
-            
+
         shell)
             echo "**Enhanced Shell Tools**"
             echo
@@ -160,7 +160,7 @@ _describe_profile() {
             echo "- file - Determine file types"
             echo
             ;;
-            
+
         networking)
             echo "**Network Development Tools**"
             echo
@@ -170,8 +170,8 @@ _describe_profile() {
             echo "- dnsutils - DNS lookup tools (dig, nslookup)"
             echo
             ;;
-            
-        webdev|javascript)
+
+        webdev | javascript)
             echo "**JavaScript Development Environment**"
             echo
             echo "JavaScript/TypeScript development stack:"
@@ -184,7 +184,7 @@ _describe_profile() {
             echo "- pnpm - Fast, disk space efficient package manager"
             echo
             ;;
-            
+
         python)
             echo "**Python Development Environment**"
             echo
@@ -203,7 +203,7 @@ _describe_profile() {
             echo "- pipenv - Package management tool"
             echo
             ;;
-            
+
         rust)
             echo "**Rust Development Environment**"
             echo
@@ -215,7 +215,7 @@ _describe_profile() {
             echo "- Common tools: clippy, rustfmt"
             echo
             ;;
-            
+
         go)
             echo "**Go Development Environment**"
             echo
@@ -226,7 +226,7 @@ _describe_profile() {
             echo "- Common tools: golangci-lint, delve debugger"
             echo
             ;;
-            
+
         flutter)
             echo "**Flutter Framework**"
             echo
@@ -239,7 +239,7 @@ _describe_profile() {
             echo "- fvm - To manage flutter versions"
             echo
             ;;
-            
+
         c)
             echo "**C/C++ Advanced Development**"
             echo
@@ -257,7 +257,7 @@ _describe_profile() {
             echo "- ncurses - Terminal UI library"
             echo
             ;;
-            
+
         java)
             echo "**Java Development Environment**"
             echo
@@ -268,7 +268,7 @@ _describe_profile() {
             echo "- Ant - Build tool (via SDKMan)"
             echo
             ;;
-            
+
         ruby)
             echo "**Ruby Development Environment**"
             echo
@@ -279,7 +279,7 @@ _describe_profile() {
             echo "- Development libraries for native extensions"
             echo
             ;;
-            
+
         php)
             echo "**PHP Development Environment**"
             echo
@@ -290,7 +290,7 @@ _describe_profile() {
             echo "- Common extensions: mysql, pgsql, sqlite3, curl, gd, mbstring, xml, zip"
             echo
             ;;
-            
+
         database)
             echo "**Database Client Tools**"
             echo
@@ -302,7 +302,7 @@ _describe_profile() {
             echo "- MongoDB clients - mongo shell and tools"
             echo
             ;;
-            
+
         devops)
             echo "**DevOps and Cloud Tools**"
             echo
@@ -316,7 +316,7 @@ _describe_profile() {
             echo "- AWS CLI - Amazon Web Services CLI"
             echo
             ;;
-            
+
         web)
             echo "**Web Server Tools**"
             echo
@@ -326,7 +326,7 @@ _describe_profile() {
             echo "- httpie - User-friendly HTTP client"
             echo
             ;;
-            
+
         embedded)
             echo "**Embedded Development Tools**"
             echo
@@ -339,7 +339,7 @@ _describe_profile() {
             echo "- PlatformIO - Embedded development platform"
             echo
             ;;
-            
+
         datascience)
             echo "**Data Science Environment**"
             echo
@@ -359,7 +359,7 @@ _describe_profile() {
             echo "- plotly - Interactive visualizations"
             echo
             ;;
-            
+
         security)
             echo "**Security Analysis Tools**"
             echo
@@ -373,7 +373,7 @@ _describe_profile() {
             echo "- hydra - Network login cracker"
             echo
             ;;
-            
+
         ml)
             echo "**Machine Learning Environment**"
             echo
@@ -387,7 +387,7 @@ _describe_profile() {
             echo "- matplotlib - Plotting library"
             echo
             ;;
-            
+
         openwrt)
             echo "**OpenWRT Development Environment**"
             echo
@@ -398,7 +398,7 @@ _describe_profile() {
             echo "- Subversion, ccache for faster builds"
             echo
             ;;
-            
+
         *)
             echo "**Custom Profile: $profile**"
             echo

@@ -12,13 +12,13 @@ _cmd_clean() {
             local cb_containers=$(docker ps -a --format "{{.Names}}" 2>/dev/null | grep "^claudebox-" || true)
             local images=$(docker images --filter "reference=claudebox*" -q 2>/dev/null)
             local volumes=$(docker volume ls -q --filter "name=claudebox" 2>/dev/null)
-            
+
             if [[ -z "$containers" ]] && [[ -z "$cb_containers" ]] && [[ -z "$images" ]] && [[ -z "$volumes" ]]; then
                 info "No ClaudeBox Docker resources found"
                 echo
                 exit 0
             fi
-            
+
             # Remove all claudebox containers
             if [[ -n "$containers" ]]; then
                 docker ps -a --filter "label=claudebox.project" -q | xargs -r docker rm -f 2>/dev/null || true
@@ -51,20 +51,20 @@ _cmd_clean() {
         project)
             # Handle project cleaning with optional name parameter
             local search="${2:-}"
-            
+
             if [[ -n "$search" ]]; then
                 # Clean specific project by name (using same logic as project/open command)
                 # Convert search to lowercase for case-insensitive matching
                 local search_lower=$(echo "$search" | tr '[:upper:]' '[:lower:]')
                 local matches=()
-                
+
                 # Search through all project directories
-                for parent_dir in "$HOME/.claudebox/projects"/*/ ; do
+                for parent_dir in "$HOME/.claudebox/projects"/*/; do
                     [[ -d "$parent_dir" ]] || continue
-                    
+
                     local dir_name=$(basename "$parent_dir")
                     local dir_lower=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]')
-                    
+
                     # Check if search matches directory name (partial match)
                     if [[ "$dir_lower" == *"$search_lower"* ]]; then
                         # Read the actual project path
@@ -74,7 +74,7 @@ _cmd_clean() {
                         fi
                     fi
                 done
-                
+
                 # Handle results
                 if [ ${#matches[@]} -eq 0 ]; then
                     error "No project found matching: $search"
@@ -98,11 +98,11 @@ _cmd_clean() {
                     echo
                     printf "Enter number (1-%d) or q to quit: " "${#matches[@]}"
                     read -r choice
-                    
+
                     if [[ "$choice" == "q" ]] || [[ -z "$choice" ]]; then
                         exit 0
                     elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#matches[@]}" ]; then
-                        local selected="${matches[$((choice-1))]}"
+                        local selected="${matches[$((choice - 1))]}"
                         local project_path="${selected%|*}"
                         local project_name="${selected#*|}"
                         _clean_project "$project_name" "$project_path"
@@ -121,22 +121,22 @@ _cmd_clean() {
             # Clean all projects
             info "Cleaning all ClaudeBox projects..."
             echo
-            
+
             local count=0
-            for parent_dir in "$HOME/.claudebox/projects"/*/ ; do
+            for parent_dir in "$HOME/.claudebox/projects"/*/; do
                 [[ -d "$parent_dir" ]] || continue
-                
+
                 local project_name=$(basename "$parent_dir")
                 local project_path=""
-                
+
                 if [[ -f "$parent_dir/.project_path" ]]; then
                     project_path=$(cat "$parent_dir/.project_path")
                 fi
-                
+
                 _clean_project "$project_name" "$project_path"
                 ((count++))
             done
-            
+
             if [ $count -eq 0 ]; then
                 info "No projects found to clean"
             else
@@ -170,14 +170,14 @@ _cmd_clean() {
 _clean_project() {
     local project_name="$1"
     local project_path="${2:-unknown}"
-    
+
     info "Cleaning project: $project_name ($project_path)"
-    
+
     local parent_dir="$HOME/.claudebox/projects/$project_name"
-    
+
     # Remove all slot directories
     local slots_removed=0
-    for slot_dir in "$parent_dir"/*/ ; do
+    for slot_dir in "$parent_dir"/*/; do
         if [[ -d "$slot_dir" ]] && [[ "$slot_dir" != "$parent_dir/" ]]; then
             local slot_name=$(basename "$slot_dir")
             # Skip profiles.ini and other project-level files
@@ -187,19 +187,19 @@ _clean_project() {
             fi
         fi
     done
-    
+
     # Remove containers for this project
     local containers=$(docker ps -a --format "{{.Names}}" 2>/dev/null | grep "^claudebox-${project_name}-" || true)
     if [[ -n "$containers" ]]; then
         echo "$containers" | xargs -r docker rm -f 2>/dev/null || true
     fi
-    
+
     # Remove project image (but not core)
     local image_name="claudebox-${project_name}"
     if docker image inspect "$image_name" >/dev/null 2>&1; then
         docker rmi -f "$image_name" 2>/dev/null || true
     fi
-    
+
     # Remove the entire project directory
     if [[ -d "$parent_dir" ]]; then
         rm -rf "$parent_dir"
@@ -214,13 +214,13 @@ _cmd_undo() {
     if [[ ! -d "$backups_dir" ]] || [[ -z "$(ls -A "$backups_dir" 2>/dev/null)" ]]; then
         error "No backups found"
     fi
-    
+
     # Get oldest backup (smallest timestamp)
     local oldest=$(ls -1 "$backups_dir" | sort -n | head -1)
     local installed_path=$(which claudebox 2>/dev/null || echo "/usr/local/bin/claudebox")
-    
+
     info "Restoring oldest backup from $(date -d @$oldest '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $oldest '+%Y-%m-%d %H:%M:%S')"
-    
+
     if [[ -w "$installed_path" ]] || [[ -w "$(dirname "$installed_path")" ]]; then
         cp "$backups_dir/$oldest" "$installed_path"
         chmod +x "$installed_path"
@@ -228,7 +228,7 @@ _cmd_undo() {
         sudo cp "$backups_dir/$oldest" "$installed_path"
         sudo chmod +x "$installed_path"
     fi
-    
+
     success "✓ Restored claudebox from backup"
     exit 0
 }
@@ -238,13 +238,13 @@ _cmd_redo() {
     if [[ ! -d "$backups_dir" ]] || [[ -z "$(ls -A "$backups_dir" 2>/dev/null)" ]]; then
         error "No backups found"
     fi
-    
+
     # Get newest backup (largest timestamp)
     local newest=$(ls -1 "$backups_dir" | sort -n | tail -1)
     local installed_path=$(which claudebox 2>/dev/null || echo "/usr/local/bin/claudebox")
-    
+
     info "Restoring newest backup from $(date -d @$newest '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $newest '+%Y-%m-%d %H:%M:%S')"
-    
+
     if [[ -w "$installed_path" ]] || [[ -w "$(dirname "$installed_path")" ]]; then
         cp "$backups_dir/$newest" "$installed_path"
         chmod +x "$installed_path"
@@ -252,7 +252,7 @@ _cmd_redo() {
         sudo cp "$backups_dir/$newest" "$installed_path"
         sudo chmod +x "$installed_path"
     fi
-    
+
     success "✓ Restored claudebox from backup"
     exit 0
 }

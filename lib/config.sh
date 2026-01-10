@@ -2,14 +2,13 @@
 # Configuration management including INI files and profile definitions.
 
 # -------- INI file helpers ----------------------------------------------------
-_read_ini() {               # $1=file $2=section $3=key
-  awk -F' *= *' -v s="[$2]" -v k="$3" '
+_read_ini() { # $1=file $2=section $3=key
+    awk -F' *= *' -v s="[$2]" -v k="$3" '
     $0==s {in=1; next}
     /^\[/ {in=0}
     in && $1==k {print $2; exit}
   ' "$1" 2>/dev/null
 }
-
 
 # -------- Profile functions (Bash 3.2 compatible) -----------------------------
 get_profile_packages() {
@@ -20,12 +19,12 @@ get_profile_packages() {
         networking) echo "iptables ipset iproute2 dnsutils" ;;
         c) echo "gdb valgrind clang clang-format clang-tidy cppcheck doxygen libboost-all-dev libcmocka-dev libcmocka0 lcov libncurses5-dev libncursesw5-dev" ;;
         openwrt) echo "rsync libncurses5-dev zlib1g-dev gawk gettext xsltproc libelf-dev ccache subversion swig time qemu-system-arm qemu-system-aarch64 qemu-system-mips qemu-system-x86 qemu-utils" ;;
-        rust) echo "" ;;  # Rust installed via rustup
-        python) echo "" ;;  # Managed via uv
-        go) echo "" ;;  # Installed from tarball
-        flutter) echo "" ;;  # Installed from source
-        javascript) echo "" ;;  # Installed via nvm
-        java) echo "" ;;  # Java installed via SDKMan, build tools in profile function
+        rust) echo "" ;;       # Rust installed via rustup
+        python) echo "" ;;     # Managed via uv
+        go) echo "" ;;         # Installed from tarball
+        flutter) echo "" ;;    # Installed from source
+        javascript) echo "" ;; # Installed via nvm
+        java) echo "" ;;       # Java installed via SDKMan, build tools in profile function
         ruby) echo "ruby-full ruby-dev libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev libxslt1-dev libcurl4-openssl-dev software-properties-common" ;;
         php) echo "php php-cli php-fpm php-mysql php-pgsql php-sqlite3 php-curl php-gd php-mbstring php-xml php-zip composer" ;;
         database) echo "postgresql-client mysql-client sqlite3 redis-tools mongodb-clients" ;;
@@ -34,7 +33,7 @@ get_profile_packages() {
         embedded) echo "gcc-arm-none-eabi gdb-multiarch openocd picocom minicom screen" ;;
         datascience) echo "r-base" ;;
         security) echo "nmap tcpdump wireshark-common netcat-openbsd john hashcat hydra" ;;
-        ml) echo "" ;;  # Just cmake needed, comes from build-tools now
+        ml) echo "" ;; # Just cmake needed, comes from build-tools now
         *) echo "" ;;
     esac
 }
@@ -83,10 +82,10 @@ expand_profile() {
         c) echo "core build-tools c" ;;
         openwrt) echo "core build-tools openwrt" ;;
         ml) echo "core build-tools ml" ;;
-        rust|go|flutter|python|php|ruby|java|database|devops|web|embedded|datascience|security|javascript)
+        rust | go | flutter | python | php | ruby | java | database | devops | web | embedded | datascience | security | javascript)
             echo "core $1"
             ;;
-        shell|networking|build-tools|core)
+        shell | networking | build-tools | core)
             echo "$1"
             ;;
         *)
@@ -173,19 +172,19 @@ update_profile_section() {
             echo "$item"
         done
         echo ""
-    } > "${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
+    } >"${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
 }
 
 get_current_profiles() {
     local profiles_file="${PROJECT_PARENT_DIR:-$HOME/.claudebox/projects/$(generate_parent_folder_name "$PWD")}/profiles.ini"
     local current_profiles=()
-    
+
     if [[ -f "$profiles_file" ]]; then
         while IFS= read -r line; do
             [[ -n "$line" ]] && current_profiles+=("$line")
         done < <(read_profile_section "$profiles_file" "profiles")
     fi
-    
+
     printf '%s\n' "${current_profiles[@]}"
 }
 
@@ -233,21 +232,21 @@ get_profile_openwrt() {
 }
 
 get_profile_rust() {
-    cat << 'EOF'
+    cat <<'EOF'
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/home/claude/.cargo/bin:$PATH"
 EOF
 }
 
 get_profile_python() {
-    cat << 'EOF'
+    cat <<'EOF'
 # Python profile - uv already installed in base image
 # Python venv and dev tools are managed via entrypoint flag system
 EOF
 }
 
 get_profile_go() {
-    cat << 'EOF'
+    cat <<'EOF'
 RUN wget -O go.tar.gz https://golang.org/dl/go1.21.0.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go.tar.gz && \
     rm go.tar.gz
@@ -257,7 +256,7 @@ EOF
 
 get_profile_flutter() {
     local flutter_version="${FLUTTER_SDK_VERSION:-stable}"
-    cat << EOF
+    cat <<EOF
 USER claude
 RUN curl -fsSL https://fvm.app/install.sh | bash
 ENV PATH="/usr/local/bin:$PATH"
@@ -270,7 +269,7 @@ EOF
 }
 
 get_profile_javascript() {
-    cat << 'EOF'
+    cat <<'EOF'
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
 ENV NVM_DIR="/home/claude/.nvm"
 RUN . $NVM_DIR/nvm.sh && nvm install --lts
@@ -281,7 +280,7 @@ EOF
 }
 
 get_profile_java() {
-    cat << 'EOF'
+    cat <<'EOF'
 USER claude
 RUN curl -s "https://get.sdkman.io?ci=true" | bash
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk install java && sdk install maven && sdk install gradle && sdk install ant"
@@ -337,7 +336,7 @@ get_profile_web() {
 get_profile_embedded() {
     local packages=$(get_profile_packages "embedded")
     if [[ -n "$packages" ]]; then
-        cat << 'EOF'
+        cat <<'EOF'
 RUN apt-get update && apt-get install -y gcc-arm-none-eabi gdb-multiarch openocd picocom minicom screen && apt-get clean
 USER claude
 RUN ~/.local/bin/uv tool install platformio
