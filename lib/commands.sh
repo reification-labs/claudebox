@@ -106,6 +106,7 @@ show_no_ready_slots_menu() {
 }
 
 # Show help function
+# shellcheck disable=SC2120 # Parameters are optional, callers may omit them
 show_help() {
     # Optional parameters
     local message="${1:-}"
