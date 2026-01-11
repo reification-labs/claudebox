@@ -42,3 +42,9 @@ bitbucket-pipelines-prod-eu-west-1.s3.amazonaws.com
 github-cloud.s3.amazonaws.com
 github-releases.githubusercontent.com
 github-production-release-asset-2e65be.s3.amazonaws.com
+
+# Elixir/Erlang
+hex.pm
+repo.hex.pm
+hexdocs.pm
+packages.erlang-solutions.com
