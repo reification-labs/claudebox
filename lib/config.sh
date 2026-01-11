@@ -275,13 +275,19 @@ EOF
 
 get_profile_elixir() {
     cat <<'EOF'
-# Install Erlang and Elixir from Erlang Solutions repository
-RUN wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && \
-    dpkg -i erlang-solutions_2.0_all.deb && \
-    rm erlang-solutions_2.0_all.deb && \
-    apt-get update && \
-    apt-get install -y esl-erlang elixir && \
-    apt-get clean
+# Copy Erlang/OTP 27 and Elixir 1.19 from official Docker image
+COPY --from=elixir:1.19-otp-27-slim /usr/local/lib/erlang /usr/local/lib/erlang
+COPY --from=elixir:1.19-otp-27-slim /usr/local/lib/elixir /usr/local/lib/elixir
+COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/erl /usr/local/bin/
+COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/erlc /usr/local/bin/
+COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/elixir /usr/local/bin/
+COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/elixirc /usr/local/bin/
+COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/iex /usr/local/bin/
+COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/mix /usr/local/bin/
+# Erlang/Elixir environment setup
+ENV LANG=C.UTF-8
+ENV ERL_ROOTDIR=/usr/local/lib/erlang
+ENV ERL_LIBS=/usr/local/lib/elixir/lib
 # Install Hex and Rebar for package management
 USER claude
 RUN mix local.hex --force && mix local.rebar --force
