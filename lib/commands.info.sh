@@ -327,8 +327,9 @@ HEADER
             fi
 
             # Check if vault name would conflict
+            # Note: { grep || true; } prevents pipefail from killing script on empty vault
             local existing_conflict
-            existing_conflict=$(grep -v "^#" "$vault_file" 2>/dev/null | while read -r line; do
+            existing_conflict=$({ grep -v "^#" "$vault_file" 2>/dev/null || true; } | while read -r line; do
                 [[ -z "$line" ]] && continue
                 local existing_name
                 existing_name=$(basename "${line/#\~/$HOME}")
