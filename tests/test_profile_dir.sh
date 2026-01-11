@@ -130,6 +130,49 @@ test_init_default_profile() {
 run_test "init_profile_dir with no arg creates 'default' profile" test_init_default_profile
 
 echo
+echo "3. Security: Path traversal prevention"
+echo "---------------------------------------"
+
+# Test: get_profile_dir rejects path traversal attempts
+test_rejects_path_traversal_dots() {
+    local result
+    # Should return error (non-zero exit) for path traversal
+    if result=$(get_profile_dir "../../../etc/passwd" 2>&1); then
+        # If it succeeded, that's a security issue
+        return 1
+    fi
+    # Should have failed - that's correct
+    return 0
+}
+run_test "get_profile_dir rejects '../../../etc/passwd'" test_rejects_path_traversal_dots
+
+# Test: get_profile_dir rejects absolute paths
+test_rejects_absolute_path() {
+    if result=$(get_profile_dir "/etc/passwd" 2>&1); then
+        return 1
+    fi
+    return 0
+}
+run_test "get_profile_dir rejects '/etc/passwd'" test_rejects_absolute_path
+
+# Test: get_profile_dir rejects hidden traversal
+test_rejects_hidden_traversal() {
+    if result=$(get_profile_dir "foo/../bar" 2>&1); then
+        return 1
+    fi
+    return 0
+}
+run_test "get_profile_dir rejects 'foo/../bar'" test_rejects_hidden_traversal
+
+# Test: Valid profile names still work
+test_accepts_valid_names() {
+    local result
+    result=$(get_profile_dir "my-profile_123")
+    [[ "$result" == "$PROJECT_DIR/.claudebox/profiles/my-profile_123" ]]
+}
+run_test "get_profile_dir accepts valid name 'my-profile_123'" test_accepts_valid_names
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

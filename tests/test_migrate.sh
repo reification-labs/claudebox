@@ -147,6 +147,17 @@ test_archive_has_timestamp() {
 run_test "Archive directory includes timestamp (prevents same-day collision)" test_archive_has_timestamp
 
 echo
+echo "4. Non-interactive handling"
+echo "----------------------------"
+
+# Test: prompt_migration should check for TTY before blocking read
+test_migration_tty_check() {
+    # Check that prompt_migration has a TTY check or env var guard
+    grep -qE '\[\[ -t 0 \]\]|\[\[ -t 1 \]\]|CLAUDEBOX_NO_PROMPT|CLAUDEBOX_AUTO' "$CLAUDEBOX_ROOT/lib/migrate.sh"
+}
+run_test "prompt_migration has TTY/env-var guard" test_migration_tty_check
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

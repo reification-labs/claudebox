@@ -107,6 +107,18 @@ test_info_no_project_parent_mounts() {
 run_test "commands.info.sh does NOT use PROJECT_PARENT_DIR for mounts" test_info_no_project_parent_mounts
 
 echo
+echo "4. Checking ~/.claudebox created with secure permissions"
+echo "---------------------------------------------------------"
+
+# Test: main.sh should create ~/.claudebox with 0700 permissions
+test_claudebox_dir_permissions() {
+    # Check that mkdir uses mode 0700 or chmod 0700 is applied
+    grep -q 'mkdir.*-m.*700.*\.claudebox\|chmod.*700.*\.claudebox\|mkdir -p -m 0700.*\.claudebox' "$CLAUDEBOX_ROOT/main.sh" || \
+    grep -q 'mkdir -m 0700.*\$HOME/.claudebox\|mkdir.*0700.*\$HOME/.claudebox' "$CLAUDEBOX_ROOT/main.sh"
+}
+run_test "main.sh creates ~/.claudebox with 0700 permissions" test_claudebox_dir_permissions
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

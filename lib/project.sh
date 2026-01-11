@@ -666,8 +666,17 @@ sync_commands_to_project() {
 # Get the profile directory path (project-local, not in ~/.claudebox)
 # Usage: get_profile_dir [profile_name]
 # Returns: $PROJECT_DIR/.claudebox/profiles/<profile_name>
+# Security: Validates profile name to prevent path traversal
 get_profile_dir() {
     local profile_name="${1:-default}"
+
+    # Security: Reject path traversal attempts
+    # Profile names must be alphanumeric with hyphens/underscores only
+    if [[ "$profile_name" =~ [./] ]] || [[ "$profile_name" =~ ^- ]]; then
+        echo "Error: Invalid profile name '$profile_name' - must be alphanumeric with hyphens/underscores only" >&2
+        return 1
+    fi
+
     echo "$PROJECT_DIR/.claudebox/profiles/$profile_name"
 }
 

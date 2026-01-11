@@ -410,6 +410,12 @@ $PROJECT/.claudebox/profiles/
     └── ...
 ```
 
+**Important:** Add `.claudebox/` to your project's `.gitignore` to prevent committing auth state and cache:
+```bash
+# Add to your project's .gitignore
+echo ".claudebox/" >> .gitignore
+```
+
 ### Other Locations
 - `~/.claude/` - Global Claude configuration (mounted read-only)
 - Current directory mounted as `/workspace` in container

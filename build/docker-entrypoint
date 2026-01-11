@@ -385,7 +385,10 @@ else
             
             # After claude exits, copy .claude.json if it was created
             # Use /workspace/.claudebox/profiles/ which is writable (not ~/.claudebox which is read-only)
-            if [[ -f "$HOME/.claude.json" ]] && [[ ! -f "/workspace/.claudebox/profiles/${CLAUDEBOX_SLOT_NAME}/.claude.json" ]]; then
+            # Security: Validate CLAUDEBOX_SLOT_NAME to prevent path traversal
+            if [[ "${CLAUDEBOX_SLOT_NAME:-}" =~ [./] ]] || [[ "${CLAUDEBOX_SLOT_NAME:-}" =~ ^- ]]; then
+                echo "Error: Invalid slot name - path traversal attempt blocked" >&2
+            elif [[ -f "$HOME/.claude.json" ]] && [[ ! -f "/workspace/.claudebox/profiles/${CLAUDEBOX_SLOT_NAME}/.claude.json" ]]; then
                 cp "$HOME/.claude.json" "/workspace/.claudebox/profiles/${CLAUDEBOX_SLOT_NAME}/.claude.json"
             fi
         ' -- "$@"

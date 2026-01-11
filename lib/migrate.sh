@@ -128,9 +128,16 @@ archive_old_structure() {
 }
 
 # Interactive migration prompt
+# Skips prompt in non-interactive mode (no TTY) unless CLAUDEBOX_AUTO_MIGRATE=1
 prompt_migration() {
     if ! has_old_structure; then
         return 0
+    fi
+
+    # Skip interactive prompt if no TTY (CI, scripted, piped)
+    if [[ ! -t 0 ]] && [[ "${CLAUDEBOX_AUTO_MIGRATE:-}" != "1" ]]; then
+        info "Old directory structure detected. Run 'claudebox migrate' interactively to migrate."
+        return 1
     fi
 
     echo

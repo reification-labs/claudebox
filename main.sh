@@ -431,8 +431,9 @@ main() {
     setup_claude_agent_command
 
     # Step 12: Fix permissions if needed
+    # Security: Create ~/.claudebox with restrictive permissions (user-only)
     if [[ ! -d "$HOME/.claudebox" ]]; then
-        mkdir -p "$HOME/.claudebox"
+        mkdir -p -m 0700 "$HOME/.claudebox"
     fi
     if [[ ! -w "$HOME/.claudebox" ]]; then
         warn "Fixing .claudebox permissions..."
