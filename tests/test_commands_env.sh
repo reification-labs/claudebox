@@ -109,6 +109,8 @@ echo
 echo "3. Profile file path respects new structure"
 echo "--------------------------------------------"
 
+# Source project.sh for generate_parent_folder_name (used by get_profile_file_path fallback)
+source "$CLAUDEBOX_ROOT/lib/project.sh"
 # Source config.sh for get_profile_file_path
 source "$CLAUDEBOX_ROOT/lib/config.sh"
 
@@ -118,6 +120,10 @@ test_profile_file_path_uses_project_parent_dir() {
     # or HOME/.claudebox due to path validation security check)
     local test_project="/tmp/test_project_$$"
     local test_dir="$test_project/.claudebox"
+
+    # Create directories first (required for symlink resolution)
+    mkdir -p "$test_dir"
+
     export PROJECT_DIR="$test_project"
     export PROJECT_PARENT_DIR="$test_dir"
 
@@ -127,11 +133,11 @@ test_profile_file_path_uses_project_parent_dir() {
     # Clean up
     unset PROJECT_PARENT_DIR
     unset PROJECT_DIR
-    rm -rf "$test_dir" 2>/dev/null || true
     rm -rf "$test_project" 2>/dev/null || true
 
-    # Should use PROJECT_PARENT_DIR, NOT ~/.claudebox/projects/
-    [[ "$result" == "$test_dir/profiles.ini" ]]
+    # Should use PROJECT_PARENT_DIR (resolved path on macOS includes /private)
+    # Check that the result ends with our expected suffix
+    [[ "$result" == *"$test_dir/profiles.ini" ]] || [[ "$result" == */private"$test_dir/profiles.ini" ]]
 }
 run_test "get_profile_file_path() respects PROJECT_PARENT_DIR" test_profile_file_path_uses_project_parent_dir
 
@@ -206,6 +212,32 @@ test_profile_file_path_rejects_prefix_bypass() {
     [[ "$result" == "$HOME/.claudebox/projects/"* ]]
 }
 run_test "get_profile_file_path() rejects prefix-bypass (.claudeboxmalicious)" test_profile_file_path_rejects_prefix_bypass
+
+# Test: get_profile_file_path() rejects symlink bypass (symlink pointing outside allowed dirs)
+test_profile_file_path_rejects_symlink_bypass() {
+    local test_project="/tmp/test_project_symlink_$$"
+    local malicious_target="/tmp/malicious_target_$$"
+
+    # Create test structure with symlink bypass attempt
+    mkdir -p "$test_project"
+    mkdir -p "$malicious_target"
+    ln -sf "$malicious_target" "$test_project/.claudebox"
+
+    export PROJECT_DIR="$test_project"
+    export PROJECT_PARENT_DIR="$test_project/.claudebox"  # Looks valid, but symlinks to /tmp/malicious_target
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+    rm -rf "$test_project" "$malicious_target" 2>/dev/null || true
+
+    # Should NOT use the symlinked path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects symlink bypass" test_profile_file_path_rejects_symlink_bypass
 
 echo
 echo "=============================================="

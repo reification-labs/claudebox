@@ -100,21 +100,49 @@ expand_profile() {
 }
 
 # -------- Profile file management ---------------------------------------------
+# Resolve symlinks in a path (Bash 3.2 compatible, no realpath dependency)
+# Returns the canonical path with symlinks resolved
+_resolve_path() {
+    local path="$1"
+    # If path exists, resolve it directly
+    if [[ -e "$path" ]]; then
+        (cd "$path" 2>/dev/null && pwd -P) || echo "$path"
+    # If path doesn't exist, resolve parent and append basename
+    elif [[ -e "$(dirname "$path")" ]]; then
+        local parent base
+        parent=$(cd "$(dirname "$path")" 2>/dev/null && pwd -P)
+        base=$(basename "$path")
+        echo "$parent/$base"
+    else
+        echo "$path"
+    fi
+}
+
 # Validate PROJECT_PARENT_DIR is within expected bounds to prevent path injection
 # Valid locations: $HOME/.claudebox or $HOME/.claudebox/* or $PROJECT_DIR/.claudebox
+# SECURITY: Resolves symlinks before validation to prevent symlink bypass attacks
 _validate_parent_dir() {
     local dir="$1"
     # Reject paths containing directory traversal (literal or URL-encoded)
     if [[ "$dir" == *".."* ]] || [[ "$dir" == *"%2e%2e"* ]] || [[ "$dir" == *"%2E%2E"* ]]; then
         return 1
     fi
+    # Resolve symlinks to get the real path
+    local resolved_dir resolved_home
+    resolved_dir=$(_resolve_path "$dir")
+    resolved_home=$(_resolve_path "$HOME/.claudebox")
     # Must be exactly ~/.claudebox or under ~/.claudebox/ (with slash boundary)
-    if [[ "$dir" == "$HOME/.claudebox" ]] || [[ "$dir" == "$HOME/.claudebox/"* ]]; then
+    if [[ "$resolved_dir" == "$resolved_home" ]] || [[ "$resolved_dir" == "$resolved_home/"* ]]; then
         return 0
     fi
     # Or exactly $PROJECT_DIR/.claudebox or under it (with slash boundary)
+    # SECURITY: We resolve PROJECT_DIR first, then check if the path is under that
+    # This prevents symlink attacks where .claudebox points outside the project
     if [[ -n "${PROJECT_DIR:-}" ]]; then
-        if [[ "$dir" == "$PROJECT_DIR/.claudebox" ]] || [[ "$dir" == "$PROJECT_DIR/.claudebox/"* ]]; then
+        local resolved_project_dir
+        resolved_project_dir=$(_resolve_path "$PROJECT_DIR")
+        # The target must be under $PROJECT_DIR/.claudebox (using resolved project dir)
+        if [[ "$resolved_dir" == "$resolved_project_dir/.claudebox" ]] || [[ "$resolved_dir" == "$resolved_project_dir/.claudebox/"* ]]; then
             return 0
         fi
     fi
@@ -441,7 +469,7 @@ get_profile_ml() {
     echo "# ML profile uses build-tools for compilation"
 }
 
-export -f _read_ini _validate_parent_dir get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
+export -f _read_ini _resolve_path _validate_parent_dir get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
 export -f get_profile_file_path read_config_value read_profile_section update_profile_section get_current_profiles
 export -f get_profile_core get_profile_build_tools get_profile_shell get_profile_networking get_profile_c get_profile_openwrt
 export -f get_profile_rust get_profile_python get_profile_go get_profile_elixir get_profile_flutter get_profile_javascript get_profile_java get_profile_ruby
