@@ -111,6 +111,18 @@ test_symlink_causes_error() {
 run_test "Symlink detection causes error (blocks execution)" test_symlink_causes_error
 
 echo
+echo "3. NET_ADMIN/NET_RAW Capabilities"
+echo "----------------------------------"
+echo "GPT review: These caps are high-privilege. Only needed when firewall is enabled."
+echo
+
+# Test: no-new-privileges security option should be present
+test_no_new_privileges() {
+    grep -q 'no-new-privileges' "$CLAUDEBOX_ROOT/lib/docker.sh"
+}
+run_test "docker.sh includes --security-opt no-new-privileges" test_no_new_privileges
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

@@ -475,6 +475,9 @@ Remove the symlink and run 'claudebox' again to recreate the directory."
         -e "CLAUDEBOX_WRAP_TMUX=${CLAUDEBOX_WRAP_TMUX:-false}"
         -e "CLAUDEBOX_PANE_NAME=${CLAUDEBOX_PANE_NAME:-}"
         -e "CLAUDEBOX_TMUX_PANE=${CLAUDEBOX_TMUX_PANE:-}"
+        # SECURITY: Prevent privilege escalation inside container
+        --security-opt no-new-privileges
+        # NET_ADMIN/NET_RAW needed for iptables-based firewall allowlist
         --cap-add NET_ADMIN
         --cap-add NET_RAW
         "$IMAGE_NAME"
