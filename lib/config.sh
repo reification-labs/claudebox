@@ -22,7 +22,7 @@ get_profile_packages() {
         rust) echo "" ;;       # Rust installed via rustup
         python) echo "" ;;     # Managed via uv
         go) echo "" ;;         # Installed from tarball
-        elixir) echo "" ;;     # Installed from Erlang Solutions
+        elixir) echo "" ;;     # Copied from official elixir Docker image
         flutter) echo "" ;;    # Installed from source
         javascript) echo "" ;; # Installed via nvm
         java) echo "" ;;       # Java installed via SDKMan, build tools in profile function
@@ -100,14 +100,32 @@ expand_profile() {
 }
 
 # -------- Profile file management ---------------------------------------------
+# Validate PROJECT_PARENT_DIR is within expected bounds to prevent path injection
+# Valid locations: $HOME/.claudebox/* or $PROJECT_DIR/.claudebox
+_validate_parent_dir() {
+    local dir="$1"
+    # Reject paths containing directory traversal
+    if [[ "$dir" == *".."* ]]; then
+        return 1
+    fi
+    # Must be under ~/.claudebox or a project's .claudebox
+    if [[ "$dir" == "$HOME/.claudebox"* ]]; then
+        return 0
+    fi
+    if [[ -n "${PROJECT_DIR:-}" ]] && [[ "$dir" == "$PROJECT_DIR/.claudebox"* ]]; then
+        return 0
+    fi
+    return 1
+}
+
 get_profile_file_path() {
-    local parent_dir
-    # Use PROJECT_PARENT_DIR (new local structure) if set, else fall back to old global structure
-    if [[ -n "${PROJECT_PARENT_DIR:-}" ]]; then
+    local parent_dir parent_name
+    # Use PROJECT_PARENT_DIR (new local structure) if set and valid, else fall back
+    # Note: PROJECT_PARENT_DIR is set internally by main.sh, not user-overridable
+    if [[ -n "${PROJECT_PARENT_DIR:-}" ]] && _validate_parent_dir "$PROJECT_PARENT_DIR"; then
         parent_dir="$PROJECT_PARENT_DIR"
     else
         # Fall back to old structure for backwards compatibility
-        local parent_name
         parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
         parent_dir="$HOME/.claudebox/projects/$parent_name"
     fi
@@ -274,6 +292,9 @@ EOF
 }
 
 get_profile_elixir() {
+    # Security note: This profile enables network access to hex.pm registries
+    # and native compilation (NIFs require gcc/make from core profile).
+    # Only use with trusted code and agent configurations.
     cat <<'EOF'
 # Copy Erlang/OTP 27 and Elixir 1.19 from official Docker image
 COPY --from=elixir:1.19-otp-27-slim /usr/local/lib/erlang /usr/local/lib/erlang
@@ -413,7 +434,7 @@ get_profile_ml() {
     echo "# ML profile uses build-tools for compilation"
 }
 
-export -f _read_ini get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
+export -f _read_ini _validate_parent_dir get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
 export -f get_profile_file_path read_config_value read_profile_section update_profile_section get_current_profiles
 export -f get_profile_core get_profile_build_tools get_profile_shell get_profile_networking get_profile_c get_profile_openwrt
 export -f get_profile_rust get_profile_python get_profile_go get_profile_elixir get_profile_flutter get_profile_javascript get_profile_java get_profile_ruby

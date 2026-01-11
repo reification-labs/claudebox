@@ -108,7 +108,7 @@ simulate_expansion() {
         local expanded
         expanded=$(expand_profile "$profile")
         for exp_profile in $expanded; do
-            if [[ ! " $seen_profiles " =~ " $exp_profile " ]]; then
+            if [[ " $seen_profiles " != *" $exp_profile "* ]]; then
                 expanded_profiles+=("$exp_profile")
                 seen_profiles+=" $exp_profile "
             fi

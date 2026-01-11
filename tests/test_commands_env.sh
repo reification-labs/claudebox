@@ -114,10 +114,12 @@ source "$CLAUDEBOX_ROOT/lib/config.sh"
 
 # Test: get_profile_file_path() uses PROJECT_PARENT_DIR when set
 test_profile_file_path_uses_project_parent_dir() {
-    # Set PROJECT_PARENT_DIR to a local path (new structure)
-    local test_dir="/tmp/claudebox_test_$$"
+    # Set PROJECT_PARENT_DIR to a valid path (must be under PROJECT_DIR/.claudebox
+    # or HOME/.claudebox due to path validation security check)
+    local test_project="/tmp/test_project_$$"
+    local test_dir="$test_project/.claudebox"
+    export PROJECT_DIR="$test_project"
     export PROJECT_PARENT_DIR="$test_dir"
-    export PROJECT_DIR="/tmp/test_project"
 
     local result
     result=$(get_profile_file_path)
@@ -126,11 +128,48 @@ test_profile_file_path_uses_project_parent_dir() {
     unset PROJECT_PARENT_DIR
     unset PROJECT_DIR
     rm -rf "$test_dir" 2>/dev/null || true
+    rm -rf "$test_project" 2>/dev/null || true
 
     # Should use PROJECT_PARENT_DIR, NOT ~/.claudebox/projects/
     [[ "$result" == "$test_dir/profiles.ini" ]]
 }
 run_test "get_profile_file_path() respects PROJECT_PARENT_DIR" test_profile_file_path_uses_project_parent_dir
+
+# Test: get_profile_file_path() rejects invalid PROJECT_PARENT_DIR (path injection protection)
+test_profile_file_path_rejects_invalid_paths() {
+    # Try to set PROJECT_PARENT_DIR to an invalid path (outside allowed bounds)
+    export PROJECT_PARENT_DIR="/tmp/malicious_path"
+    export PROJECT_DIR="/some/project"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the invalid path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects invalid PROJECT_PARENT_DIR" test_profile_file_path_rejects_invalid_paths
+
+# Test: get_profile_file_path() rejects directory traversal attempts
+test_profile_file_path_rejects_traversal() {
+    export PROJECT_DIR="/tmp/test_project"
+    # Attempt directory traversal
+    export PROJECT_PARENT_DIR="$PROJECT_DIR/.claudebox/../../../etc"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the traversal path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects directory traversal" test_profile_file_path_rejects_traversal
 
 echo
 echo "=============================================="
