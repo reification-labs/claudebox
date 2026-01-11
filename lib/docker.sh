@@ -142,156 +142,180 @@ run_claudebox_container() {
             ;;
     esac
 
-    # Always check for tmux socket and mount if available (or create one)
-    local tmux_socket=""
-    local tmux_socket_dir=""
+    # SECURITY: Tmux socket mounting is OPT-IN only (via 'claudebox tmux')
+    # Mounting host tmux sockets allows container to send keystrokes to host sessions
+    if [[ "${CLAUDEBOX_WRAP_TMUX:-false}" == "true" ]]; then
+        local tmux_socket=""
+        local tmux_socket_dir=""
 
-    # If TMUX env var is set, extract socket path from it
-    if [[ -n "${TMUX:-}" ]]; then
-        # TMUX format is typically: /tmp/tmux-1000/default,23456,0
-        tmux_socket="${TMUX%%,*}"
-        tmux_socket_dir=$(dirname "$tmux_socket")
-    else
-        # Look for existing tmux socket or determine where to create one
-        local uid
-        uid=$(id -u)
-        local default_socket_dir="/tmp/tmux-$uid"
+        # If TMUX env var is set, extract socket path from it
+        if [[ -n "${TMUX:-}" ]]; then
+            # TMUX format is typically: /tmp/tmux-1000/default,23456,0
+            tmux_socket="${TMUX%%,*}"
+            tmux_socket_dir=$(dirname "$tmux_socket")
+        else
+            # Look for existing tmux socket or determine where to create one
+            local uid
+            uid=$(id -u)
+            local default_socket_dir="/tmp/tmux-$uid"
 
-        # Check common locations for existing sockets
-        for socket_dir in "$default_socket_dir" "/var/run/tmux-$uid" "$HOME/.tmux"; do
-            if [[ -d "$socket_dir" ]]; then
-                # Find any socket in the directory
-                for socket in "$socket_dir"/default "$socket_dir"/*; do
-                    if [[ -S "$socket" ]]; then
-                        tmux_socket="$socket"
-                        tmux_socket_dir="$socket_dir"
-                        break
-                    fi
-                done
-                [[ -n "$tmux_socket" ]] && break
-            fi
-        done
+            # Check common locations for existing sockets
+            for socket_dir in "$default_socket_dir" "/var/run/tmux-$uid" "$HOME/.tmux"; do
+                if [[ -d "$socket_dir" ]]; then
+                    # Find any socket in the directory
+                    for socket in "$socket_dir"/default "$socket_dir"/*; do
+                        if [[ -S "$socket" ]]; then
+                            tmux_socket="$socket"
+                            tmux_socket_dir="$socket_dir"
+                            break
+                        fi
+                    done
+                    [[ -n "$tmux_socket" ]] && break
+                fi
+            done
 
-        # If no socket found, ensure we have a socket directory for potential tmux usage
-        if [[ -z "$tmux_socket" ]]; then
-            tmux_socket_dir="$default_socket_dir"
-            # Create the socket directory if it doesn't exist
-            if [[ ! -d "$tmux_socket_dir" ]]; then
-                mkdir -p "$tmux_socket_dir"
-                chmod 700 "$tmux_socket_dir"
-            fi
+            # If no socket found, ensure we have a socket directory for potential tmux usage
+            if [[ -z "$tmux_socket" ]]; then
+                tmux_socket_dir="$default_socket_dir"
+                # Create the socket directory if it doesn't exist
+                if [[ ! -d "$tmux_socket_dir" ]]; then
+                    mkdir -p "$tmux_socket_dir"
+                    chmod 700 "$tmux_socket_dir"
+                fi
 
-            # Check if tmux is installed and create a detached session if so
-            if command -v tmux >/dev/null 2>&1; then
-                # Create a minimal tmux server without attaching
-                # This creates the socket but doesn't start any session
-                tmux -S "$tmux_socket_dir/default" start-server \; 2>/dev/null || true
-                if [[ -S "$tmux_socket_dir/default" ]]; then
-                    tmux_socket="$tmux_socket_dir/default"
-                    if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Created tmux server socket at: $tmux_socket" >&2
+                # Check if tmux is installed and create a detached session if so
+                if command -v tmux >/dev/null 2>&1; then
+                    # Create a minimal tmux server without attaching
+                    # This creates the socket but doesn't start any session
+                    tmux -S "$tmux_socket_dir/default" start-server \; 2>/dev/null || true
+                    if [[ -S "$tmux_socket_dir/default" ]]; then
+                        tmux_socket="$tmux_socket_dir/default"
+                        if [[ "$VERBOSE" == "true" ]]; then
+                            echo "[DEBUG] Created tmux server socket at: $tmux_socket" >&2
+                        fi
                     fi
                 fi
             fi
         fi
-    fi
 
-    # Mount the socket and directory if we have them
-    if [[ -n "$tmux_socket_dir" ]] && [[ -d "$tmux_socket_dir" ]]; then
-        # Always mount the socket directory
-        docker_args+=(-v "$tmux_socket_dir:$tmux_socket_dir")
-        if [[ "$VERBOSE" == "true" ]]; then
-            echo "[DEBUG] Mounting tmux socket directory: $tmux_socket_dir" >&2
-        fi
-
-        # Mount specific socket if it exists
-        if [[ -n "$tmux_socket" ]] && [[ -S "$tmux_socket" ]]; then
+        # Mount the socket and directory if we have them
+        if [[ -n "$tmux_socket_dir" ]] && [[ -d "$tmux_socket_dir" ]]; then
+            # Mount the socket directory
+            docker_args+=(-v "$tmux_socket_dir:$tmux_socket_dir")
             if [[ "$VERBOSE" == "true" ]]; then
-                echo "[DEBUG] Tmux socket found at: $tmux_socket" >&2
+                echo "[DEBUG] Mounting tmux socket directory: $tmux_socket_dir" >&2
             fi
-        fi
 
-        # Pass TMUX env var if available
-        [[ -n "${TMUX:-}" ]] && docker_args+=(-e "TMUX=$TMUX")
+            # Mount specific socket if it exists
+            if [[ -n "$tmux_socket" ]] && [[ -S "$tmux_socket" ]]; then
+                if [[ "$VERBOSE" == "true" ]]; then
+                    echo "[DEBUG] Tmux socket found at: $tmux_socket" >&2
+                fi
+            fi
+
+            # Pass TMUX env var if available
+            [[ -n "${TMUX:-}" ]] && docker_args+=(-e "TMUX=$TMUX")
+        fi
     fi
 
     # Standard configuration for ALL containers
+    # SECURITY: Mount GLOBAL config (~/.claudebox) as READ-ONLY to prevent modification of
+    # mounts/allowlist files from inside container (sandbox escape prevention)
+    # CRITICAL: Global config must be OUTSIDE /workspace to prevent bypass via /workspace/.claudebox
+    local global_config_dir="$HOME/.claudebox"
     docker_args+=(
         -w /workspace
         -v "$PROJECT_DIR":/workspace
-        -v "$PROJECT_PARENT_DIR":"/home/$DOCKER_USER/.claudebox"
+        -v "$global_config_dir":"/home/$DOCKER_USER/.claudebox:ro"
     )
 
-    # Ensure .claude directory exists
-    if [[ ! -d "$PROJECT_SLOT_DIR/.claude" ]]; then
-        mkdir -p "$PROJECT_SLOT_DIR/.claude"
-    fi
+    # Get profile directory and ensure it exists with all required subdirectories
+    # Use PROFILE_NAME if set (from _profile_run), otherwise default
+    local profile_dir
+    profile_dir=$(get_profile_dir "${PROFILE_NAME:-default}")
+    init_profile_dir "${PROFILE_NAME:-default}"
 
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.claude":"/home/$DOCKER_USER/.claude")
+    # Mount profile directories for Claude state, config, and cache
+    # SECURITY: Check for symlinks to prevent exfiltration attacks (Gemini review)
+    # A malicious repo could replace profile dirs with symlinks to ~/.ssh, etc.
+    for subdir in .claude .config .cache .venv; do
+        local check_path="$profile_dir/$subdir"
+        if [[ -L "$check_path" ]]; then
+            error "SECURITY: Profile directory '$check_path' is a symlink.
+To prevent exfiltration attacks, profile directories cannot be symlinks.
+Remove the symlink and run 'claudebox' again to recreate the directory."
+        fi
+    done
+
+    docker_args+=(-v "$profile_dir/.claude":"/home/$DOCKER_USER/.claude")
 
     # Mount .claude.json only if it already exists (from previous session)
-    if [[ -f "$PROJECT_SLOT_DIR/.claude.json" ]]; then
-        docker_args+=(-v "$PROJECT_SLOT_DIR/.claude.json":"/home/$DOCKER_USER/.claude.json")
+    if [[ -f "$profile_dir/.claude.json" ]]; then
+        # Also check .claude.json for symlink
+        if [[ -L "$profile_dir/.claude.json" ]]; then
+            error "SECURITY: Profile file '$profile_dir/.claude.json' is a symlink."
+        fi
+        docker_args+=(-v "$profile_dir/.claude.json":"/home/$DOCKER_USER/.claude.json")
     fi
 
     # Mount .config directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.config":"/home/$DOCKER_USER/.config")
+    docker_args+=(-v "$profile_dir/.config":"/home/$DOCKER_USER/.config")
 
     # Mount .cache directory
-    docker_args+=(-v "$PROJECT_SLOT_DIR/.cache":"/home/$DOCKER_USER/.cache")
+    docker_args+=(-v "$profile_dir/.cache":"/home/$DOCKER_USER/.cache")
+
+    # Mount .venv directory to user home (NOT inside .claudebox which is read-only)
+    # This allows Python venv creation while keeping global config read-only for security
+    docker_args+=(-v "$profile_dir/.venv":"/home/$DOCKER_USER/.venv")
 
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
 
-    # Mount custom volumes from mounts file
-    local mounts_file="$PROJECT_PARENT_DIR/mounts"
-    if [[ -f "$mounts_file" ]]; then
+    # Mount vault directories (NEW secure format: always read-only, /vault/<name>)
+    local vault_file="$global_config_dir/vault"
+    if [[ -f "$vault_file" ]]; then
         while IFS= read -r line; do
             # Skip comments and empty lines
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^#.* ]]; then
-                local host_path container_path mode
-                IFS=':' read -r host_path container_path mode <<< "$line"
-
-                # Validate all fields are non-empty
-                if [[ -z "$host_path" || -z "$container_path" || -z "$mode" ]]; then
-                    if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping malformed mount (empty field): $line" >&2
-                    fi
-                    continue
-                fi
-
-                # Validate mode is ro or rw
-                if [[ "$mode" != "ro" && "$mode" != "rw" ]]; then
-                    if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping mount (invalid mode '$mode'): $line" >&2
-                    fi
-                    continue
-                fi
+                local host_path="$line"
 
                 # Expand ~ in host path
                 host_path="${host_path/#\~/$HOME}"
 
-                # Validate paths don't contain colons (would break Docker volume spec)
-                if [[ "$host_path" == *:* || "$container_path" == *:* ]]; then
+                # SECURITY: Skip symlinks (could point to sensitive directories)
+                if [[ -L "$host_path" ]]; then
                     if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping mount (colon in path): $host_path -> $container_path" >&2
+                        echo "[DEBUG] Skipping vault (symlink): $host_path" >&2
                     fi
                     continue
                 fi
 
-                # Only mount if host path exists
-                if [[ -e "$host_path" ]]; then
-                    docker_args+=(-v "${host_path}:${container_path}:${mode}")
+                # SECURITY: Skip paths with traversal
+                if [[ "$host_path" == *".."* ]]; then
                     if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Mounting custom volume: $host_path -> $container_path ($mode)" >&2
+                        echo "[DEBUG] Skipping vault (path traversal): $host_path" >&2
+                    fi
+                    continue
+                fi
+
+                # Derive vault name and container path
+                local vault_name
+                vault_name=$(basename "$host_path")
+                local container_path="/vault/$vault_name"
+
+                # Only mount if host path exists and is a directory
+                if [[ -d "$host_path" ]]; then
+                    docker_args+=(-v "${host_path}:${container_path}:ro")
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Mounting vault: $host_path -> $container_path (ro)" >&2
                     fi
                 else
                     if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping mount (host path not found): $host_path" >&2
+                        echo "[DEBUG] Skipping vault (not a directory): $host_path" >&2
                     fi
                 fi
             fi
-        done < "$mounts_file"
+        done <"$vault_file"
     fi
 
     # Mount .env file if it exists in the project directory
@@ -354,10 +378,10 @@ run_claudebox_container() {
                 rm -f "$file"
             fi
         done
-        if [[ -n "$user_mcp_file" ]] && [[ -f "$user_mcp_file" ]]; then
+        if [[ -n "${user_mcp_file:-}" ]] && [[ -f "${user_mcp_file:-}" ]]; then
             rm -f "$user_mcp_file"
         fi
-        if [[ -n "$project_mcp_file" ]] && [[ -f "$project_mcp_file" ]]; then
+        if [[ -n "${project_mcp_file:-}" ]] && [[ -f "${project_mcp_file:-}" ]]; then
             rm -f "$project_mcp_file"
         fi
     }
@@ -451,6 +475,9 @@ run_claudebox_container() {
         -e "CLAUDEBOX_WRAP_TMUX=${CLAUDEBOX_WRAP_TMUX:-false}"
         -e "CLAUDEBOX_PANE_NAME=${CLAUDEBOX_PANE_NAME:-}"
         -e "CLAUDEBOX_TMUX_PANE=${CLAUDEBOX_TMUX_PANE:-}"
+        # SECURITY: Prevent privilege escalation inside container
+        --security-opt no-new-privileges
+        # NET_ADMIN/NET_RAW needed for iptables-based firewall allowlist
         --cap-add NET_ADMIN
         --cap-add NET_RAW
         "$IMAGE_NAME"
@@ -491,24 +518,27 @@ run_docker_build() {
     info "Running docker build..."
     export DOCKER_BUILDKIT=1
 
-    # Check if we need to force rebuild due to template changes
-    local no_cache_flag=""
+    # Build the command array to avoid empty argument issues
+    local -a build_args=(
+        --progress="${BUILDKIT_PROGRESS:-auto}"
+        --build-arg BUILDKIT_INLINE_CACHE=1
+        --build-arg USER_ID="$USER_ID"
+        --build-arg GROUP_ID="$GROUP_ID"
+        --build-arg USERNAME="$DOCKER_USER"
+        --build-arg NODE_VERSION="$NODE_VERSION"
+        --build-arg DELTA_VERSION="$DELTA_VERSION"
+        --build-arg REBUILD_TIMESTAMP="${CLAUDEBOX_REBUILD_TIMESTAMP:-}"
+        -f "$1"
+        -t "$IMAGE_NAME"
+    )
+
+    # Add --no-cache only if force rebuild is requested
     if [[ "${CLAUDEBOX_FORCE_NO_CACHE:-false}" == "true" ]]; then
-        no_cache_flag="--no-cache"
         info "Forcing full rebuild (templates changed)"
+        build_args+=(--no-cache)
     fi
 
-    docker build \
-        "$no_cache_flag" \
-        --progress="${BUILDKIT_PROGRESS:-auto}" \
-        --build-arg BUILDKIT_INLINE_CACHE=1 \
-        --build-arg USER_ID="$USER_ID" \
-        --build-arg GROUP_ID="$GROUP_ID" \
-        --build-arg USERNAME="$DOCKER_USER" \
-        --build-arg NODE_VERSION="$NODE_VERSION" \
-        --build-arg DELTA_VERSION="$DELTA_VERSION" \
-        --build-arg REBUILD_TIMESTAMP="${CLAUDEBOX_REBUILD_TIMESTAMP:-}" \
-        -f "$1" -t "$IMAGE_NAME" "$2" || error "Docker build failed"
+    docker build "${build_args[@]}" "$2" || error "Docker build failed"
 }
 
 export -f check_docker install_docker configure_docker_nonroot docker_exec_root docker_exec_user run_claudebox_container check_container_exists run_docker_build

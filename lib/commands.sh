@@ -15,36 +15,38 @@
 source "${LIB_DIR}/commands.core.sh"
 
 # ============================================================================
-# PROFILE COMMANDS - Development profile management
+# ENV COMMANDS - Development environment management
 # ============================================================================
-# Commands: profiles, profile, add, remove, install
-# - profiles: Lists all available development profiles
-# - profile: Shows profile management help
-# - add: Adds development profiles to the project
-# - remove: Removes profiles from the project
+# Router: claudebox env <subcommand>
+# Subcommands: list, add, remove, install
+# - list: Lists all available development environments
+# - add: Adds development environments to the project
+# - remove: Removes environments from the project
 # - install: Installs additional apt packages
+# shellcheck source=commands.env.sh
+source "${LIB_DIR}/commands.env.sh"
+
+# ============================================================================
+# PROFILE COMMANDS - Container profile management
+# ============================================================================
+# Router: claudebox profile <subcommand>
+# Subcommands: list, create, run, remove, kill
+# - list: Lists all container profiles for the project
+# - create: Creates a new container profile for parallel instances
+# - run: Launches a specific numbered profile
+# - remove: Removes container profiles
+# - kill: Kills running containers
 # shellcheck source=commands.profile.sh
 source "${LIB_DIR}/commands.profile.sh"
 
 # ============================================================================
-# SLOT COMMANDS - Container slot management
-# ============================================================================
-# Commands: create, slots, slot, revoke
-# - create: Creates a new container slot for parallel instances
-# - slots: Lists all container slots for the project
-# - slot: Launches a specific numbered slot
-# - revoke: Removes container slots
-# shellcheck source=commands.slot.sh
-source "${LIB_DIR}/commands.slot.sh"
-
-# ============================================================================
 # INFO COMMANDS - Information display
 # ============================================================================
-# Commands: info, projects, allowlist
+# Commands: info, projects, allowlist, vault
 # - info: Shows comprehensive project and system information
 # - projects: Lists all ClaudeBox projects system-wide
 # - allowlist: Shows/manages the firewall allowlist
-# - mount: Shows/manages custom volume mounts
+# - vault: Shows/manages read-only vault mounts
 # shellcheck source=commands.info.sh
 source "${LIB_DIR}/commands.info.sh"
 
@@ -71,38 +73,46 @@ source "${LIB_DIR}/commands.clean.sh"
 source "${LIB_DIR}/commands.system.sh"
 
 # ============================================================================
+# MIGRATION - Migrate from old global to new project-local structure
+# ============================================================================
+# Commands: migrate
+# - migrate: Migrate old ~/.claudebox/projects/ to $PROJECT/.claudebox/profiles/
+# shellcheck source=migrate.sh
+source "${LIB_DIR}/migrate.sh"
+
+# ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
-# Show menu when no slots exist
+# Show menu when no profiles exist
 show_no_slots_menu() {
     logo_small
     echo
-    cecho "No available slots found" "$YELLOW"
+    cecho "No available profiles found" "$YELLOW"
     echo
-    printf "To continue, you'll need an available container slot.\n"
+    printf "To continue, you'll need an available container profile.\n"
     echo
-    printf "  ${CYAN}claudebox create${NC}  - Create a new slot\n"
-    printf "  ${CYAN}claudebox slots${NC}   - View existing slots\n"
+    printf "  ${CYAN}claudebox profile create${NC}  - Create a new profile\n"
+    printf "  ${CYAN}claudebox profile list${NC}    - View existing profiles\n"
     echo
-    printf "  ${DIM}Hint: Create multiple slots to run parallel authenticated${NC}\n"
+    printf "  ${DIM}Hint: Create multiple profiles to run parallel authenticated${NC}\n"
     printf "  ${DIM}Claude sessions in the same project.${NC}\n"
     echo
     exit 1
 }
 
-# Show menu when no ready slots are available
+# Show menu when no ready profiles are available
 show_no_ready_slots_menu() {
     logo_small
     printf '\n'
-    cecho "No ready slots available!" "$YELLOW"
+    cecho "No ready profiles available!" "$YELLOW"
     printf '\n'
-    printf '%s\n' "You must have at least one slot that is authenticated and inactive."
+    printf '%s\n' "You must have at least one profile that is authenticated and inactive."
     printf '\n'
-    printf '%s\n' "Run 'claudebox slots' to check your slots"
-    printf '%s\n' "Run 'claudebox create' to create a new slot"
+    printf '%s\n' "Run 'claudebox profile list' to check your profiles"
+    printf '%s\n' "Run 'claudebox profile create' to create a new profile"
     printf '\n'
-    printf '%s\n' "To use a specific slot: claudebox slot <number>"
+    printf '%s\n' "To use a specific profile: claudebox profile run <number>"
     printf '\n'
 }
 
@@ -114,22 +124,24 @@ show_help() {
     local footer="${2:-}"
 
     # ClaudeBox specific commands
-    local our_commands="  profiles                        List all available profiles
+    local our_commands="  env list                        List available development environments
+  env add <envs...>               Add development environments
+  env remove <envs...>            Remove development environments
+  env install <packages>          Install apt packages
+  profile list                    List all container profiles
+  profile create [name]           Create a profile (default: 'default')
+  profile run [name]              Run a profile (default: 'default')
+  profile remove <name>           Remove a profile by name
+  profile kill [name|all]         Kill running container(s)
   projects                        List all projects with paths
-  add <profiles...>               Add development profiles
-  remove <profiles...>            Remove development profiles
-  install <packages>              Install apt packages
   import                          Import commands from host to project
   save [flags...]                 Save default flags
   shell                           Open transient shell
   shell admin                     Open admin shell (sudo enabled)
   allowlist                       Show/edit firewall allowlist
-  mount                           Show/edit custom volume mounts
+  vault                           Show/edit read-only vault mounts
   info                            Show comprehensive project info
   clean                           Menu of cleanup tasks
-  create                          Create new authenticated container slot
-  slots                           List all container slots
-  slot <number>                   Launch a specific container slot
   project <name>                  Open project by name/hash from anywhere
   tmux                            Launch ClaudeBox with tmux support enabled"
 
@@ -228,22 +240,24 @@ show_full_help() {
   --disable-firewall               Disable network restrictions\
 ' |
             sed '$ a\
-  profiles                        List all available profiles\
+  env list                        List available development environments\
+  env add <envs...>               Add development environments\
+  env remove <envs...>            Remove development environments\
+  env install <packages>          Install apt packages\
+  profile list                    List all container profiles\
+  profile create [name]           Create a profile (default: "default")\
+  profile run [name]              Run a profile (default: "default")\
+  profile remove <name>           Remove a profile by name\
+  profile kill [name|all]         Kill running container(s)\
   projects                        List all projects with paths\
-  add <profiles...>               Add development profiles\
-  remove <profiles...>            Remove development profiles\
-  install <packages>              Install apt packages\
   import                          Import commands from host to project\
   save [flags...]                 Save default flags\
   shell                           Open transient shell\
   shell admin                     Open admin shell (sudo enabled)\
   allowlist                       Show/edit firewall allowlist\
-  mount                           Show/edit custom volume mounts\
+  vault                           Show/edit read-only vault mounts\
   info                            Show comprehensive project info\
   clean                           Menu of cleanup tasks\
-  create                          Create new authenticated container slot\
-  slots                           List all container slots\
-  slot <number>                   Launch a specific container slot\
   project <name>                  Open project by name/hash from anywhere\
   tmux                            Launch ClaudeBox with tmux support enabled')
 
@@ -280,26 +294,18 @@ dispatch_command() {
         shell) _cmd_shell "$@" ;;
         update) _cmd_update "$@" ;;
 
-        # Profile commands
-        profiles) _cmd_profiles "$@" ;;
-        profile) _cmd_profile "$@" ;;
-        add) _cmd_add "$@" ;;
-        remove) _cmd_remove "$@" ;;
-        install) _cmd_install "$@" ;;
+        # Env router (development environments)
+        env) _cmd_env "$@" ;;
 
-        # Slot commands
-        create) _cmd_create "$@" ;;
-        slots) _cmd_slots "$@" ;;
-        slot) _cmd_slot "$@" ;;
-        revoke) _cmd_revoke "$@" ;;
-        kill) _cmd_kill "$@" ;;
+        # Profile router (container profiles)
+        profile) _cmd_profile "$@" ;;
 
         # Info commands
-        projects)         _cmd_projects "$@" ;;
-        allowlist)        _cmd_allowlist "$@" ;;
-        mount)            _cmd_mount "$@" ;;
-        info)             _cmd_info "$@" ;;
-        
+        projects) _cmd_projects "$@" ;;
+        allowlist) _cmd_allowlist "$@" ;;
+        vault) _cmd_vault "$@" ;;
+        info) _cmd_info "$@" ;;
+
         # Clean commands
         clean) _cmd_clean "$@" ;;
         undo) _cmd_undo "$@" ;;
@@ -312,6 +318,49 @@ dispatch_command() {
         tmux) _cmd_tmux "$@" ;;
         project) _cmd_project "$@" ;;
         import) _cmd_import "$@" ;;
+
+        # Migration
+        migrate) _cmd_migrate "$@" ;;
+
+        # Backward compatibility aliases (deprecated slot commands)
+        slots)
+            warn "Note: 'claudebox slots' is deprecated. Use 'claudebox profile list' instead."
+            _cmd_profile list "$@"
+            ;;
+        slot)
+            warn "Note: 'claudebox slot' is deprecated. Use 'claudebox profile run' instead."
+            _cmd_profile run "$@"
+            ;;
+        create)
+            warn "Note: 'claudebox create' is deprecated. Use 'claudebox profile create' instead."
+            _cmd_profile create "$@"
+            ;;
+        revoke)
+            warn "Note: 'claudebox revoke' is deprecated. Use 'claudebox profile remove' instead."
+            _cmd_profile remove "$@"
+            ;;
+        kill)
+            warn "Note: 'claudebox kill' is deprecated. Use 'claudebox profile kill' instead."
+            _cmd_profile kill "$@"
+            ;;
+
+        # Backward compatibility aliases (deprecated dev profile commands)
+        profiles)
+            warn "Note: 'claudebox profiles' is deprecated. Use 'claudebox env list' instead."
+            _cmd_env list "$@"
+            ;;
+        add)
+            warn "Note: 'claudebox add' is deprecated. Use 'claudebox env add' instead."
+            _cmd_env add "$@"
+            ;;
+        remove)
+            warn "Note: 'claudebox remove' is deprecated. Use 'claudebox env remove' instead."
+            _cmd_env remove "$@"
+            ;;
+        install)
+            warn "Note: 'claudebox install' is deprecated. Use 'claudebox env install' instead."
+            _cmd_env install "$@"
+            ;;
 
         # Special commands that modify container
         config | mcp | migrate-installer)

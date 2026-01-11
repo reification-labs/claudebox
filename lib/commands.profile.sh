@@ -1,329 +1,335 @@
 #!/usr/bin/env bash
-# Profile Commands - Development profile management
+# Profile Commands - Container profile management
 # ============================================================================
-# Commands: profiles, profile, add, remove, install
-# Manages development tools and packages in containers
+# Router: claudebox profile <subcommand>
+# Subcommands: list, create, run, remove, kill
+# Manages named container instances per project
 
-_cmd_profiles() {
-    # Get current profiles
-    local current_profiles=()
-    readarray -t current_profiles < <(get_current_profiles)
+# ----------------------------------------------------------------------------
+# SUBCOMMANDS
+# ----------------------------------------------------------------------------
 
-    # Show logo first
-    logo_small
-    printf '\n'
+_profile_list() {
+    local profiles_dir="$PROJECT_DIR/.claudebox/profiles"
 
-    # Show commands at the top
-    printf '%s\n' "Commands:"
-    printf "  ${CYAN}claudebox add <profiles...>${NC}    - Add development profiles to your project\n"
-    printf "  ${CYAN}claudebox remove <profiles...>${NC} - Remove profiles from your project\n"
-    printf '\n'
-
-    # Show currently enabled profiles
-    if [[ ${#current_profiles[@]} -gt 0 ]]; then
-        cecho "Currently enabled:" "$YELLOW"
-        printf "  %s\n" "${current_profiles[*]}"
-        printf '\n'
+    if [[ ! -d "$profiles_dir" ]]; then
+        info "No profiles found. Run 'claudebox profile create' to create one."
+        return 0
     fi
 
-    # Show available profiles
-    cecho "Available profiles:" "$CYAN"
-    printf '\n'
-    while IFS= read -r profile; do
-        local desc
-        desc=$(get_profile_description "$profile")
-        local is_enabled=false
-        # Check if profile is currently enabled
-        for enabled in "${current_profiles[@]}"; do
-            if [[ "$enabled" == "$profile" ]]; then
-                is_enabled=true
-                break
-            fi
-        done
-        printf "  ${GREEN}%-15s${NC} " "$profile"
-        if [[ "$is_enabled" == "true" ]]; then
-            printf "${GREEN}✓${NC} "
-        else
-            printf "  "
+    local profiles
+    profiles=$(find "$profiles_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+
+    if [[ -z "$profiles" ]]; then
+        info "No profiles found. Run 'claudebox profile create' to create one."
+        return 0
+    fi
+
+    echo
+    cecho "Container Profiles for $(basename "$PROJECT_DIR"):" "$CYAN"
+    echo
+
+    while IFS= read -r profile_path; do
+        local name
+        name=$(basename "$profile_path")
+        local status="ready"
+
+        # Check if container is running for this profile
+        local container_name
+        container_name="claudebox-$(basename "$PROJECT_DIR")-${name}"
+        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"; then
+            status="running"
         fi
-        printf "%s\n" "$desc"
-    done < <(get_all_profile_names | tr ' ' '\n' | sort)
-    printf '\n'
-    exit 0
+
+        if [[ "$status" == "running" ]]; then
+            printf "  ${GREEN}●${NC} %-20s ${DIM}(running)${NC}\n" "$name"
+        else
+            printf "  ${NC}○${NC} %-20s\n" "$name"
+        fi
+    done <<<"$profiles"
+
+    echo
+    return 0
 }
 
-_cmd_profile() {
-    # Profile menu/help
+_profile_create() {
+    local name="${1:-default}"
+
+    # Validate profile name (alphanumeric, hyphen, underscore only)
+    if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        error "Invalid profile name: '$name'. Use only letters, numbers, hyphens, and underscores."
+    fi
+
+    local profile_dir
+    profile_dir=$(get_profile_dir "$name")
+
+    # Check if profile already exists
+    if [[ -d "$profile_dir" ]]; then
+        info "Profile '$name' already exists at: $profile_dir"
+        return 0
+    fi
+
+    # Create the profile
+    init_profile_dir "$name"
+
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "[DEBUG] Created profile: $name" >&2
+        echo "[DEBUG] Profile directory: $profile_dir" >&2
+    fi
+
+    success "Created profile: $name"
+
+    # Show updated profiles list
+    _profile_list
+
+    return 0
+}
+
+_profile_run() {
+    local name="${1:-default}"
+    shift || true # Remove profile name from arguments
+
+    # Get the profile directory
+    local profile_dir
+    profile_dir=$(get_profile_dir "$name")
+
+    # Check if profile exists
+    if [[ ! -d "$profile_dir" ]]; then
+        error "Profile '$name' does not exist. Run 'claudebox profile list' to see available profiles."
+    fi
+
+    # Set up environment for this specific profile
+    export PROJECT_SLOT_DIR="$profile_dir"
+    export PROJECT_PARENT_DIR="$PROJECT_DIR/.claudebox"
+    export PROFILE_NAME="$name"
+    IMAGE_NAME=$(get_image_name)
+    export IMAGE_NAME
+
+    info "Using profile: $name"
+
+    # Sync commands before launching container
+    if declare -f sync_commands_to_project >/dev/null 2>&1; then
+        sync_commands_to_project "$PROJECT_DIR/.claudebox"
+    fi
+
+    # Container name uses project name + profile name
+    local project_name
+    project_name=$(basename "$PROJECT_DIR")
+    local container_name="claudebox-${project_name}-${name}"
+
+    # If we're in tmux, get the pane ID and pass it through
+    if [[ -n "${TMUX:-}" ]]; then
+        local tmux_pane_id
+        tmux_pane_id=$(tmux display-message -p '#{pane_id}')
+        export CLAUDEBOX_TMUX_PANE="$tmux_pane_id"
+    fi
+
+    # Run container with remaining arguments passed to claude
+    run_claudebox_container "$container_name" "interactive" "$@"
+}
+
+_profile_remove() {
+    local target="${1:-}"
+    local profiles_dir="$PROJECT_DIR/.claudebox/profiles"
+    local project_name
+    project_name=$(basename "$PROJECT_DIR")
+
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        info "No profiles to remove"
+        return 0
+    fi
+
+    # Check for "all" argument
+    if [[ "$target" == "all" ]]; then
+        local removed_count=0
+
+        while IFS= read -r profile_path; do
+            local name
+            name=$(basename "$profile_path")
+            local container_name="claudebox-${project_name}-${name}"
+
+            # Check if container is running
+            if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"; then
+                warn "Profile '$name' is in use, skipping"
+            else
+                if rm -rf "$profile_path"; then
+                    success "Removed profile: $name"
+                    ((removed_count++)) || true
+                else
+                    error "Failed to remove profile: $name"
+                fi
+            fi
+        done < <(find "$profiles_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+
+        if [[ $removed_count -eq 0 ]]; then
+            info "No profiles were removed"
+        fi
+    elif [[ -z "$target" ]]; then
+        # No argument - show help
+        echo
+        cecho "Remove a profile:" "$CYAN"
+        echo
+        echo "Usage:"
+        echo "  claudebox profile remove <name>    # Remove specific profile"
+        echo "  claudebox profile remove all       # Remove all profiles"
+        echo
+        _profile_list
+        return 0
+    else
+        # Remove specific profile by name
+        local profile_dir
+        profile_dir=$(get_profile_dir "$target")
+
+        if [[ ! -d "$profile_dir" ]]; then
+            error "Profile '$target' does not exist"
+        fi
+
+        local container_name="claudebox-${project_name}-${target}"
+
+        # Check if container is running
+        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"; then
+            error "Cannot remove profile '$target' - it is currently in use"
+        fi
+
+        # Remove the profile
+        if rm -rf "$profile_dir"; then
+            success "Removed profile: $target"
+        else
+            error "Failed to remove profile: $target"
+        fi
+    fi
+
+    # Show updated profiles list
+    _profile_list
+    return 0
+}
+
+_profile_kill() {
+    local target="${1:-}"
+    local project_name
+    project_name=$(basename "$PROJECT_DIR")
+    local profiles_dir="$PROJECT_DIR/.claudebox/profiles"
+
+    # If no argument, show running containers
+    if [[ -z "$target" ]]; then
+        logo_small
+        echo
+        cecho "Kill running ClaudeBox containers:" "$CYAN"
+        echo
+        cecho "WARNING: This forcefully terminates containers!" "$YELLOW"
+        echo
+
+        # Show running containers
+        local found=false
+        echo "Running containers in this project:"
+        echo
+
+        if [[ -d "$profiles_dir" ]]; then
+            while IFS= read -r profile_path; do
+                local name
+                name=$(basename "$profile_path")
+                local container_name="claudebox-${project_name}-${name}"
+
+                if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"; then
+                    printf "  ${GREEN}●${NC} %s\n" "$name"
+                    found=true
+                fi
+            done < <(find "$profiles_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+        fi
+
+        if [[ "$found" == "false" ]]; then
+            info "No running containers found"
+        else
+            echo
+            cecho "Usage:" "$YELLOW"
+            echo "  claudebox profile kill <name>    # Kill specific container"
+            echo "  claudebox profile kill all       # Kill all containers"
+        fi
+        echo
+        return 0
+    fi
+
+    # Kill all containers
+    if [[ "$target" == "all" ]]; then
+        local containers
+        containers=$(docker ps --format "{{.Names}}" | grep "^claudebox-${project_name}-" || true)
+
+        if [[ -z "$containers" ]]; then
+            info "No running containers to kill"
+            echo
+            return 0
+        fi
+
+        warn "Killing all containers for this project..."
+        echo "$containers" | while IFS= read -r container; do
+            echo "  Killing: $container"
+            docker kill "$container" >/dev/null 2>&1 || true
+        done
+        success "All containers killed"
+        echo
+        return 0
+    fi
+
+    # Kill specific container by profile name
+    local full_container="claudebox-${project_name}-${target}"
+
+    if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${full_container}$"; then
+        warn "Killing container: $full_container"
+        docker kill "$full_container" >/dev/null 2>&1 || error "Failed to kill container"
+        success "Container killed: $target"
+    else
+        error "Container not found: $target"
+        echo "Run 'claudebox profile kill' to see running containers"
+    fi
+    echo
+}
+
+_profile_help() {
     logo_small
     echo
     cecho "ClaudeBox Profile Management:" "$CYAN"
     echo
-    echo -e "  ${GREEN}profiles${NC}                 Show all available profiles"
-    echo -e "  ${GREEN}add <names...>${NC}           Add development profiles"
-    echo -e "  ${GREEN}remove <names...>${NC}        Remove development profiles"
-    echo -e "  ${GREEN}add status${NC}               Show current project's profiles"
+    echo -e "  ${GREEN}claudebox profile list${NC}              Show all container profiles"
+    echo -e "  ${GREEN}claudebox profile create [name]${NC}     Create a new profile (default: 'default')"
+    echo -e "  ${GREEN}claudebox profile run [name]${NC}        Run a specific profile (default: 'default')"
+    echo -e "  ${GREEN}claudebox profile remove <name>${NC}     Remove a profile by name"
+    echo -e "  ${GREEN}claudebox profile remove all${NC}        Remove all profiles"
+    echo -e "  ${GREEN}claudebox profile kill [name|all]${NC}   Kill running container(s)"
     echo
     cecho "Examples:" "$YELLOW"
-    echo "  claudebox profiles              # See all available profiles"
-    echo "  claudebox add python rust       # Add Python and Rust profiles"
-    echo "  claudebox remove rust           # Remove Rust profile"
-    echo "  claudebox add status            # Check current project's profiles"
+    echo "  claudebox profile list             # See all profiles"
+    echo "  claudebox profile create           # Create 'default' profile"
+    echo "  claudebox profile create frontend  # Create 'frontend' profile"
+    echo "  claudebox profile run              # Run 'default' profile"
+    echo "  claudebox profile run backend      # Run 'backend' profile"
+    echo "  claudebox profile remove frontend  # Remove 'frontend' profile"
+    echo "  claudebox profile remove all       # Remove all profiles"
+    echo "  claudebox profile kill all         # Kill all running containers"
     echo
-    exit 0
 }
 
-_cmd_add() {
-    # Profile management doesn't need a slot, just the parent directory
-    init_project_dir "$PROJECT_DIR"
-    local profile_file
-    profile_file=$(get_profile_file_path)
+# ----------------------------------------------------------------------------
+# ROUTER
+# ----------------------------------------------------------------------------
 
-    # Check for special subcommands
-    case "${1:-}" in
-        status | --status | -s)
-            cecho "Project: $PROJECT_DIR" "$CYAN"
-            echo
-            if [[ -f "$profile_file" ]]; then
-                local current_profiles=()
-                while IFS= read -r line; do
-                    [[ -n "$line" ]] && current_profiles+=("$line")
-                done < <(read_profile_section "$profile_file" "profiles")
-                if [[ ${#current_profiles[@]} -gt 0 ]]; then
-                    cecho "Active profiles: ${current_profiles[*]}" "$GREEN"
-                else
-                    cecho "No profiles installed" "$YELLOW"
-                fi
+_cmd_profile() {
+    local subcmd="${1:-}"
+    shift || true
 
-                local current_packages=()
-                local current_packages=()
-                while IFS= read -r line; do
-                    [[ -n "$line" ]] && current_packages+=("$line")
-                done < <(read_profile_section "$profile_file" "packages")
-                if [[ ${#current_packages[@]} -gt 0 ]]; then
-                    echo "Extra packages: ${current_packages[*]}"
-                fi
-            else
-                cecho "No profiles configured for this project" "$YELLOW"
-            fi
-            exit 0
+    case "$subcmd" in
+        list) _profile_list "$@" ;;
+        create) _profile_create "$@" ;;
+        run) _profile_run "$@" ;;
+        remove) _profile_remove "$@" ;;
+        kill) _profile_kill "$@" ;;
+        help | --help | -h | "")
+            _profile_help
+            ;;
+        *)
+            error "Unknown subcommand: $subcmd\nRun 'claudebox profile help' for usage"
             ;;
     esac
-
-    # Process profile names
-    local selected=() remaining=()
-    while [[ $# -gt 0 ]]; do
-        # Stop processing if we hit a flag (starts with -)
-        if [[ "$1" == -* ]]; then
-            remaining=("$@")
-            break
-        fi
-
-        if profile_exists "$1"; then
-            selected+=("$1")
-            shift
-        else
-            remaining=("$@")
-            break
-        fi
-    done
-
-    [[ ${#selected[@]} -eq 0 ]] && error "No valid profiles specified\nRun 'claudebox profiles' to see available profiles"
-
-    update_profile_section "$profile_file" "profiles" "${selected[@]}"
-
-    local all_profiles=()
-    local all_profiles=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && all_profiles+=("$line")
-    done < <(read_profile_section "$profile_file" "profiles")
-
-    cecho "Profile: $PROJECT_DIR" "$CYAN"
-    cecho "Adding profiles: ${selected[*]}" "$PURPLE"
-    if [[ ${#all_profiles[@]} -gt 0 ]]; then
-        cecho "All active profiles: ${all_profiles[*]}" "$GREEN"
-    fi
-    echo
-
-    # Check if any Python-related profiles were added
-    local python_profiles_added=false
-    for profile in "${selected[@]}"; do
-        if [[ "$profile" == "python" ]] || [[ "$profile" == "ml" ]] || [[ "$profile" == "datascience" ]]; then
-            python_profiles_added=true
-            break
-        fi
-    done
-
-    # If Python profiles were added, remove the pydev flag to trigger reinstall
-    if [[ "$python_profiles_added" == "true" ]]; then
-        local parent_dir
-        parent_dir=$(get_parent_dir "$PROJECT_DIR")
-        if [[ -f "$parent_dir/.pydev_flag" ]]; then
-            rm -f "$parent_dir/.pydev_flag"
-            info "Python packages will be updated on next run"
-        fi
-    fi
-
-    # Only show rebuild message for non-Python profiles
-    local needs_rebuild=false
-    for profile in "${selected[@]}"; do
-        if [[ "$profile" != "python" ]] && [[ "$profile" != "ml" ]] && [[ "$profile" != "datascience" ]]; then
-            needs_rebuild=true
-            break
-        fi
-    done
-
-    if [[ "$needs_rebuild" == "true" ]]; then
-        warn "The Docker image will be rebuilt with new profiles on next run."
-    fi
-    echo
-
-    if [[ ${#remaining[@]} -gt 0 ]]; then
-        set -- "${remaining[@]}"
-    fi
 }
 
-_cmd_remove() {
-    # Profile management doesn't need a slot, just the parent directory
-    init_project_dir "$PROJECT_DIR"
-    local profile_file
-    profile_file=$(get_profile_file_path)
-
-    # Read current profiles
-    local current_profiles=()
-    if [[ -f "$profile_file" ]]; then
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && current_profiles+=("$line")
-        done < <(read_profile_section "$profile_file" "profiles")
-    fi
-
-    # Show currently enabled profiles if no arguments
-    if [[ $# -eq 0 ]]; then
-        if [[ ${#current_profiles[@]} -gt 0 ]]; then
-            cecho "Currently Enabled Profiles:" "$YELLOW"
-            echo -e "  ${current_profiles[*]}"
-            echo
-            echo "Usage: claudebox remove <profile1> [profile2] ..."
-        else
-            echo "No profiles currently enabled."
-        fi
-        exit 1
-    fi
-
-    # Get list of profiles to remove
-    local to_remove=()
-    while [[ $# -gt 0 ]]; do
-        # Stop processing if we hit a flag (starts with -)
-        if [[ "$1" == -* ]]; then
-            break
-        fi
-
-        if profile_exists "$1"; then
-            to_remove+=("$1")
-            shift
-        else
-            # Also stop if we hit an unknown profile
-            # This prevents consuming Claude args as profile names
-            break
-        fi
-    done
-
-    [[ ${#to_remove[@]} -eq 0 ]] && error "No valid profiles specified to remove"
-
-    # Remove specified profiles
-    local new_profiles=()
-    local python_profiles_removed=false
-    for profile in "${current_profiles[@]}"; do
-        local keep=true
-        for remove in "${to_remove[@]}"; do
-            if [[ "$profile" == "$remove" ]]; then
-                keep=false
-                # Check if we're removing a Python-related profile
-                if [[ "$profile" == "python" ]] || [[ "$profile" == "ml" ]] || [[ "$profile" == "datascience" ]]; then
-                    python_profiles_removed=true
-                fi
-                break
-            fi
-        done
-        [[ "$keep" == "true" ]] && new_profiles+=("$profile")
-    done
-
-    # Check if any Python-related profiles remain
-    local has_python_profiles=false
-    for profile in "${new_profiles[@]}"; do
-        if [[ "$profile" == "python" ]] || [[ "$profile" == "ml" ]] || [[ "$profile" == "datascience" ]]; then
-            has_python_profiles=true
-            break
-        fi
-    done
-
-    # If we removed Python profiles and no Python profiles remain, clean up Python flags
-    if [[ "$python_profiles_removed" == "true" ]] && [[ "$has_python_profiles" == "false" ]]; then
-        init_project_dir "$PROJECT_DIR"
-        PROJECT_PARENT_DIR=$(get_parent_dir "$PROJECT_DIR")
-
-        # Remove Python flags and venv folder if they exist
-        if [[ -f "$PROJECT_PARENT_DIR/.venv_flag" ]]; then
-            rm -f "$PROJECT_PARENT_DIR/.venv_flag"
-        fi
-        if [[ -f "$PROJECT_PARENT_DIR/.pydev_flag" ]]; then
-            rm -f "$PROJECT_PARENT_DIR/.pydev_flag"
-        fi
-        if [[ -d "$PROJECT_PARENT_DIR/.venv" ]]; then
-            rm -rf "$PROJECT_PARENT_DIR/.venv"
-        fi
-
-        cecho "Cleaned up Python environment flags and venv folder" "$YELLOW"
-    fi
-
-    # Write back the filtered profiles
-    {
-        echo "[profiles]"
-        for profile in "${new_profiles[@]}"; do
-            echo "$profile"
-        done
-        echo ""
-
-        # Preserve packages section if it exists
-        if [[ -f "$profile_file" ]] && grep -q "^\[packages\]" "$profile_file"; then
-            echo "[packages]"
-            while IFS= read -r line; do
-                echo "$line"
-            done < <(read_profile_section "$profile_file" "packages")
-        fi
-    } >"${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
-
-    cecho "Profile: $PROJECT_DIR" "$CYAN"
-    cecho "Removed profiles: ${to_remove[*]}" "$PURPLE"
-    if [[ ${#new_profiles[@]} -gt 0 ]]; then
-        cecho "Remaining profiles: ${new_profiles[*]}" "$GREEN"
-    else
-        cecho "No profiles remaining" "$YELLOW"
-    fi
-    echo
-    warn "The Docker image will be rebuilt with updated profiles on next run."
-    echo
-}
-
-_cmd_install() {
-    [[ $# -eq 0 ]] && error "No packages specified. Usage: claudebox install <package1> <package2> ..."
-
-    local profile_file
-    profile_file=$(get_profile_file_path)
-
-    update_profile_section "$profile_file" "packages" "$@"
-
-    local all_packages=()
-    local all_packages=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && all_packages+=("$line")
-    done < <(read_profile_section "$profile_file" "packages")
-
-    cecho "Profile: $PROJECT_DIR" "$CYAN"
-    cecho "Installing packages: $*" "$PURPLE"
-    if [[ ${#all_packages[@]} -gt 0 ]]; then
-        cecho "All packages: ${all_packages[*]}" "$GREEN"
-    fi
-    echo
-}
-
-export -f _cmd_profiles _cmd_profile _cmd_add _cmd_remove _cmd_install
+export -f _cmd_profile _profile_list _profile_create _profile_run _profile_remove _profile_kill _profile_help

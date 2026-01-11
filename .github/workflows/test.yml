@@ -2,79 +2,63 @@ name: Test ClaudeBox
 
 on:
   push:
-    branches: [ main, refactor ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  test-compatibility:
+  test-unit:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Run Bash 3.2 compatibility tests
-      run: |
-        cd tests
-        bash test_bash32_compat.sh
-        
-    - name: Run Docker Bash 3.2 tests (Linux only)
-      if: runner.os == 'Linux'
-      run: |
-        cd tests
-        bash test_in_bash32_docker.sh
 
-    - name: Run mount command validation tests
-      run: |
-        cd tests
-        bash test_mount_command.sh
+    - name: Run unit tests
+      run: bin/test
 
-    - name: Run Docker mount :ro enforcement tests (Linux only)
-      if: runner.os == 'Linux'
-      run: |
-        cd tests
-        bash test_mount_readonly.sh
-        
+  test-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run all tests including Docker integration tests
+      run: bin/test --docker
+
   lint:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Install ShellCheck
+
+    - name: Install linting tools
       run: |
         sudo apt-get update
         sudo apt-get install -y shellcheck
-        
-    - name: Run ShellCheck on main script
-      run: shellcheck -x --severity=warning main.sh
 
-    - name: Run ShellCheck on library files
-      run: shellcheck -x --severity=warning lib/*.sh
-      
+    - name: Run ShellCheck on all scripts
+      run: shellcheck -x --severity=warning main.sh lib/*.sh
+
   build:
     runs-on: ubuntu-latest
-    needs: [test-compatibility, lint]
-    
+    needs: [test-unit, test-docker, lint]
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Build installer
-      run: |
-        bash .builder/build.sh
-        
+      run: bash .builder/build.sh
+
     - name: Verify installer was created
       run: |
         test -f claudebox.run
         echo "Installer size: $(ls -lh claudebox.run | awk '{print $5}')"
 
     - name: Test installer in dev mode
-      run: |
-        # Should detect we're in a git repo and run directly
-        ./claudebox.run --help | grep "ClaudeBox"
+      run: ./claudebox.run --help | grep "ClaudeBox"
 
     - name: Upload installer artifact
       uses: actions/upload-artifact@v4

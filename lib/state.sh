@@ -114,6 +114,12 @@ setup_claude_agent_command() {
     fi
 }
 
+# Get the path for storing Docker layer checksums (project-local)
+# Returns: $PROJECT_DIR/.claudebox/.docker_layer_checksums
+get_checksum_file() {
+    echo "$PROJECT_DIR/.claudebox/.docker_layer_checksums"
+}
+
 # Calculate checksums for different Docker build layers
 calculate_docker_layer_checksums() {
     local project_dir="${1:-$PROJECT_DIR}"
@@ -177,7 +183,8 @@ calculate_docker_layer_checksums() {
 needs_docker_rebuild() {
     local project_dir="${1:-$PROJECT_DIR}"
     local image_name="${2:-$IMAGE_NAME}"
-    local checksum_file="$PROJECT_PARENT_DIR/.docker_layer_checksums"
+    local checksum_file
+    checksum_file=$(get_checksum_file)
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[DEBUG] needs_docker_rebuild called with project_dir=$project_dir, image_name=$image_name" >&2
     fi
@@ -261,7 +268,11 @@ needs_docker_rebuild() {
 # Save Docker layer checksums after successful build
 save_docker_layer_checksums() {
     local project_dir="${1:-$PROJECT_DIR}"
-    local checksum_file="$PROJECT_PARENT_DIR/.docker_layer_checksums"
+    local checksum_file
+    checksum_file=$(get_checksum_file)
+
+    # Ensure the directory exists
+    mkdir -p "$(dirname "$checksum_file")"
 
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[DEBUG] save_docker_layer_checksums called" >&2
@@ -276,4 +287,4 @@ save_docker_layer_checksums() {
     fi
 }
 
-export -f update_symlink setup_shared_commands setup_claude_agent_command calculate_docker_layer_checksums needs_docker_rebuild save_docker_layer_checksums
+export -f update_symlink setup_shared_commands setup_claude_agent_command get_checksum_file calculate_docker_layer_checksums needs_docker_rebuild save_docker_layer_checksums

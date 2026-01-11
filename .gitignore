@@ -72,3 +72,7 @@ backlog/
 # Generated installer
 claudebox.run.sh
 claudebox.run
+
+# Ignore whole project-specific ClaudeBox folder
+.claudebox/
+

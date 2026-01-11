@@ -235,6 +235,11 @@ main() {
         fi
     fi
 
+    # Check for old structure that needs migration
+    if has_old_structure; then
+        prompt_migration
+    fi
+
     # If running from installer, show appropriate message and exit
     if [[ "${CLAUDEBOX_INSTALLER_RUN:-}" == "true" ]]; then
         # Check if this is first install or update
@@ -267,9 +272,16 @@ main() {
         exit 0
     fi
 
-    # Step 6: Initialize project directory (creates parent with profiles.ini)
-    init_project_dir "$PROJECT_DIR"
-    PROJECT_PARENT_DIR=$(get_parent_dir "$PROJECT_DIR")
+    # Step 6: Initialize project directory
+    # Check if using new profile-based structure
+    local using_new_profiles=false
+    if [[ -d "$PROJECT_DIR/.claudebox/profiles" ]]; then
+        using_new_profiles=true
+        PROJECT_PARENT_DIR="$PROJECT_DIR/.claudebox"
+    else
+        init_project_dir "$PROJECT_DIR"
+        PROJECT_PARENT_DIR=$(get_parent_dir "$PROJECT_DIR")
+    fi
     export PROJECT_PARENT_DIR
 
     # Step 7: Handle rebuild if requested (will use IMAGE_NAME from step 8)
@@ -280,7 +292,7 @@ main() {
     local parent_folder_name
     parent_folder_name=$(generate_parent_folder_name "$PROJECT_DIR")
 
-    # Get the slot to use (might be empty)
+    # Get the slot/profile to use (might be empty)
     project_folder_name=$(get_project_folder_name "$PROJECT_DIR")
 
     # Early exit if command needs Docker but no slots exist
@@ -293,9 +305,13 @@ main() {
     IMAGE_NAME=$(get_image_name)
     export IMAGE_NAME
 
-    # Set PROJECT_SLOT_DIR if we have a slot
+    # Set PROJECT_SLOT_DIR if we have a slot/profile
     if [[ -n "$project_folder_name" ]] && [[ "$project_folder_name" != "NONE" ]]; then
-        PROJECT_SLOT_DIR="$PROJECT_PARENT_DIR/$project_folder_name"
+        if [[ "$using_new_profiles" == "true" ]]; then
+            PROJECT_SLOT_DIR="$PROJECT_DIR/.claudebox/profiles/$project_folder_name"
+        else
+            PROJECT_SLOT_DIR="$PROJECT_PARENT_DIR/$project_folder_name"
+        fi
         export PROJECT_SLOT_DIR
     fi
 
@@ -415,8 +431,10 @@ main() {
     setup_claude_agent_command
 
     # Step 12: Fix permissions if needed
+    # Security: Create ~/.claudebox with restrictive permissions (user-only)
     if [[ ! -d "$HOME/.claudebox" ]]; then
         mkdir -p "$HOME/.claudebox"
+        chmod 0700 "$HOME/.claudebox"
     fi
     if [[ ! -w "$HOME/.claudebox" ]]; then
         warn "Fixing .claudebox permissions..."
@@ -424,16 +442,20 @@ main() {
     fi
 
     # Step 13: Create allowlist if needed
-    if [[ -n "${PROJECT_PARENT_DIR:-}" ]]; then
-        local allowlist_file="$PROJECT_PARENT_DIR/allowlist"
-        if [[ ! -f "$allowlist_file" ]]; then
-            # Root directory is where the script is located
-            local root_dir="$SCRIPT_DIR"
+    # New profile system uses $HOME/.claudebox/allowlist (global)
+    # Old system uses $PROJECT_PARENT_DIR/allowlist
+    local allowlist_file
+    if [[ "$using_new_profiles" == "true" ]]; then
+        allowlist_file="$HOME/.claudebox/allowlist"
+    elif [[ -n "${PROJECT_PARENT_DIR:-}" ]]; then
+        allowlist_file="$PROJECT_PARENT_DIR/allowlist"
+    fi
 
-            local allowlist_template="${root_dir}/build/allowlist"
-            if [[ -f "$allowlist_template" ]]; then
-                cp "$allowlist_template" "$allowlist_file" || error "Failed to copy allowlist template"
-            fi
+    if [[ -n "$allowlist_file" ]] && [[ ! -f "$allowlist_file" ]]; then
+        local root_dir="$SCRIPT_DIR"
+        local allowlist_template="${root_dir}/build/allowlist"
+        if [[ -f "$allowlist_template" ]]; then
+            cp "$allowlist_template" "$allowlist_file" || error "Failed to copy allowlist template"
         fi
     fi
 

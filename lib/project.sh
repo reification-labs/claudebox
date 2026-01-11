@@ -68,8 +68,15 @@ get_parent_dir() {
 }
 
 # Initialize project directory: create parent, counter, central profiles.ini
+# NOTE: Skip if using new project-local profile structure
 init_project_dir() {
     local path="$1" parent
+
+    # If new profile structure exists, don't create old ~/.claudebox/projects/ structure
+    if [[ -d "$path/.claudebox/profiles" ]]; then
+        return 0
+    fi
+
     parent=$(get_parent_dir "$path")
     mkdir -p "$parent"
     # initialize counter if missing
@@ -256,7 +263,28 @@ find_inactive_slot() {
 # Get the project folder name - returns the next available slot
 get_project_folder_name() {
     local path="$1"
-    # First ensure project is initialized
+
+    # Check for new profile-based structure first
+    local profiles_dir="$path/.claudebox/profiles"
+    if [[ -d "$profiles_dir" ]]; then
+        # Find first available profile (prefer "default")
+        if [[ -d "$profiles_dir/default" ]]; then
+            echo "default"
+            return 0
+        fi
+        # Otherwise return first profile found
+        local first_profile
+        first_profile=$(ls -1 "$profiles_dir" 2>/dev/null | head -1)
+        if [[ -n "$first_profile" ]]; then
+            echo "$first_profile"
+            return 0
+        fi
+        # Profiles dir exists but empty - still a valid project
+        echo "default"
+        return 0
+    fi
+
+    # Fall back to old slot-based system
     init_project_dir "$path"
 
     # Find next available slot
@@ -631,8 +659,54 @@ sync_commands_to_project() {
     fi
 }
 
+# ============================================================================
+# Profile Directory Functions (Phase 2: Project-Local State)
+# ============================================================================
+
+# Get the profile directory path (project-local, not in ~/.claudebox)
+# Usage: get_profile_dir [profile_name]
+# Returns: $PROJECT_DIR/.claudebox/profiles/<profile_name>
+# Security: Validates profile name to prevent path traversal
+get_profile_dir() {
+    local profile_name="${1:-default}"
+
+    # Security: Reject empty or whitespace-only names
+    # This prevents paths like ".claudebox/profiles/" with no profile name
+    local trimmed="${profile_name//[[:space:]]/}"
+    if [[ -z "$trimmed" ]]; then
+        echo "Error: Profile name cannot be empty or whitespace-only" >&2
+        return 1
+    fi
+
+    # Security: Reject path traversal attempts and invalid characters
+    # Profile names must match: alphanumeric, hyphens, underscores only
+    # Leading hyphen rejected (could be confused with CLI flags)
+    if [[ "$profile_name" =~ [./] ]] || [[ "$profile_name" =~ ^- ]] || [[ ! "$profile_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "Error: Invalid profile name '$profile_name' - must be alphanumeric with hyphens/underscores only, cannot start with hyphen" >&2
+        return 1
+    fi
+
+    echo "$PROJECT_DIR/.claudebox/profiles/$profile_name"
+}
+
+# Initialize a profile directory with required subdirectories
+# Usage: init_profile_dir [profile_name]
+# Creates: $PROJECT_DIR/.claudebox/profiles/<profile_name>/{.claude,.config,.cache}
+init_profile_dir() {
+    local profile_name="${1:-default}"
+    local profile_dir
+    profile_dir=$(get_profile_dir "$profile_name")
+
+    # Create profile directory and subdirectories
+    mkdir -p "$profile_dir/.claude"
+    mkdir -p "$profile_dir/.config"
+    mkdir -p "$profile_dir/.cache"
+    mkdir -p "$profile_dir/.venv"
+}
+
 # Export all functions
 export -f crc32_word crc32_string crc32_file
+export -f get_profile_dir init_profile_dir
 export -f slugify_path generate_container_name generate_parent_folder_name get_parent_dir
 export -f init_project_dir init_slot_dir
 export -f read_counter write_counter

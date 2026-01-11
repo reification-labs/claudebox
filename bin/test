@@ -1,0 +1,124 @@
+#!/bin/bash
+# Run ClaudeBox tests
+# Usage: bin/test [options] [test_file...]
+#   --docker    Include Docker-dependent tests
+#   --all       Run all tests including Docker tests (requires Docker)
+#   No args: run all non-Docker tests
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$ROOT_DIR/tests"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Parse args
+RUN_DOCKER=false
+SPECIFIC_TESTS=()
+
+for arg in "$@"; do
+    case "$arg" in
+        --docker | --all)
+            RUN_DOCKER=true
+            ;;
+        *)
+            SPECIFIC_TESTS+=("$arg")
+            ;;
+    esac
+done
+
+# Check Docker availability
+DOCKER_AVAILABLE=false
+if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+    DOCKER_AVAILABLE=true
+fi
+
+# Docker-dependent tests
+DOCKER_TESTS=(
+    test_in_bash32_docker.sh
+    test_mount_readonly.sh
+    test_security_readonly_config.sh
+    test_security_workspace_bypass.sh
+)
+
+is_docker_test() {
+    local test="$1"
+    for dt in "${DOCKER_TESTS[@]}"; do
+        [[ "$test" == "$dt" ]] && return 0
+    done
+    return 1
+}
+
+echo "=============================================="
+echo "ClaudeBox Test Suite"
+echo "=============================================="
+[[ "$RUN_DOCKER" == "true" ]] && echo "Mode: All tests (including Docker)"
+[[ "$RUN_DOCKER" != "true" ]] && echo "Mode: Unit tests only (use --docker for integration tests)"
+echo
+
+TOTAL_PASSED=0
+TOTAL_FAILED=0
+TOTAL_SKIPPED=0
+
+# Determine which tests to run
+if [[ ${#SPECIFIC_TESTS[@]} -gt 0 ]]; then
+    TEST_FILES=("${SPECIFIC_TESTS[@]}")
+else
+    TEST_FILES=(test_*.sh)
+fi
+
+for test_file in "${TEST_FILES[@]}"; do
+    # Skip run_all.sh if it exists
+    [[ "$test_file" == "run_all.sh" ]] && continue
+    [[ ! -f "$test_file" ]] && continue
+
+    # Check if Docker test
+    if is_docker_test "$test_file"; then
+        if [[ "$RUN_DOCKER" != "true" ]]; then
+            echo -e "${YELLOW}SKIP${NC}: $test_file (use --docker)"
+            TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
+            continue
+        fi
+        if [[ "$DOCKER_AVAILABLE" != "true" ]]; then
+            echo -e "${YELLOW}SKIP${NC}: $test_file (Docker not available)"
+            TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
+            continue
+        fi
+    fi
+
+    # Run test
+    echo -n "Running: $test_file... "
+    if bash "$test_file" >/tmp/claudebox_test_$$.txt 2>&1; then
+        echo -e "${GREEN}PASS${NC}"
+        TOTAL_PASSED=$((TOTAL_PASSED + 1))
+    else
+        echo -e "${RED}FAIL${NC}"
+        echo "--- Output ---"
+        tail -20 /tmp/claudebox_test_$$.txt
+        echo "--------------"
+        TOTAL_FAILED=$((TOTAL_FAILED + 1))
+    fi
+    rm -f /tmp/claudebox_test_$$.txt
+done
+
+echo
+echo "=============================================="
+echo "Summary"
+echo "=============================================="
+echo -e "Passed:  ${GREEN}$TOTAL_PASSED${NC}"
+echo -e "Failed:  ${RED}$TOTAL_FAILED${NC}"
+echo -e "Skipped: ${YELLOW}$TOTAL_SKIPPED${NC}"
+echo
+
+if [[ $TOTAL_FAILED -gt 0 ]]; then
+    echo -e "${RED}Some tests failed!${NC}"
+    exit 1
+else
+    echo -e "${GREEN}All tests passed!${NC}"
+    exit 0
+fi

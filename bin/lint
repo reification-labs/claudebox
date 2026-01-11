@@ -1,0 +1,68 @@
+#!/bin/bash
+# Lint all ClaudeBox shell scripts
+# Usage: bin/lint [file...]
+#   No args: lint all lib/*.sh and main.sh
+#   With args: lint specified files only
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$ROOT_DIR"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# Determine files to lint
+if [[ $# -gt 0 ]]; then
+    FILES=("$@")
+else
+    FILES=(main.sh lib/*.sh)
+fi
+
+echo "Linting: ${FILES[*]}"
+echo
+
+# Step 1: Format with shfmt
+echo -n "1. shfmt (formatting)... "
+if command -v shfmt &>/dev/null; then
+    shfmt -i 4 -ci -w "${FILES[@]}"
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}SKIP${NC} (shfmt not installed)"
+fi
+
+# Step 2: Harden with shellharden
+echo -n "2. shellharden (quoting)... "
+if command -v shellharden &>/dev/null; then
+    shellharden --replace "${FILES[@]}"
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}SKIP${NC} (shellharden not installed)"
+fi
+
+# Step 3: Fix SC2155 (declare and assign separately)
+echo -n "3. fix_sc2155.py... "
+if [[ -f "$ROOT_DIR/scripts/fix_sc2155.py" ]]; then
+    for f in "${FILES[@]}"; do
+        python3 "$ROOT_DIR/scripts/fix_sc2155.py" "$f"
+    done
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}SKIP${NC} (scripts/fix_sc2155.py not found)"
+fi
+
+# Step 4: Check with shellcheck
+echo -n "4. shellcheck (lint)... "
+if command -v shellcheck &>/dev/null; then
+    shellcheck -x --severity=warning "${FILES[@]}"
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}FAIL${NC} (shellcheck not installed)"
+    exit 1
+fi
+
+echo
+echo -e "${GREEN}✓ All linting passed${NC}"
