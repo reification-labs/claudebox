@@ -106,6 +106,33 @@ test_env_help_exists() {
 run_test "_env_help() for 'claudebox env help'" test_env_help_exists
 
 echo
+echo "3. Profile file path respects new structure"
+echo "--------------------------------------------"
+
+# Source config.sh for get_profile_file_path
+source "$CLAUDEBOX_ROOT/lib/config.sh"
+
+# Test: get_profile_file_path() uses PROJECT_PARENT_DIR when set
+test_profile_file_path_uses_project_parent_dir() {
+    # Set PROJECT_PARENT_DIR to a local path (new structure)
+    local test_dir="/tmp/claudebox_test_$$"
+    export PROJECT_PARENT_DIR="$test_dir"
+    export PROJECT_DIR="/tmp/test_project"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+    rm -rf "$test_dir" 2>/dev/null || true
+
+    # Should use PROJECT_PARENT_DIR, NOT ~/.claudebox/projects/
+    [[ "$result" == "$test_dir/profiles.ini" ]]
+}
+run_test "get_profile_file_path() respects PROJECT_PARENT_DIR" test_profile_file_path_uses_project_parent_dir
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

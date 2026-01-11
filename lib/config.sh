@@ -101,10 +101,16 @@ expand_profile() {
 
 # -------- Profile file management ---------------------------------------------
 get_profile_file_path() {
-    # Use the parent directory name, not the slot name
-    local parent_name
-    parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
-    local parent_dir="$HOME/.claudebox/projects/$parent_name"
+    local parent_dir
+    # Use PROJECT_PARENT_DIR (new local structure) if set, else fall back to old global structure
+    if [[ -n "${PROJECT_PARENT_DIR:-}" ]]; then
+        parent_dir="$PROJECT_PARENT_DIR"
+    else
+        # Fall back to old structure for backwards compatibility
+        local parent_name
+        parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
+        parent_dir="$HOME/.claudebox/projects/$parent_name"
+    fi
     mkdir -p "$parent_dir"
     echo "$parent_dir/profiles.ini"
 }
