@@ -171,6 +171,42 @@ test_profile_file_path_rejects_traversal() {
 }
 run_test "get_profile_file_path() rejects directory traversal" test_profile_file_path_rejects_traversal
 
+# Test: get_profile_file_path() rejects URL-encoded directory traversal (%2e%2e)
+test_profile_file_path_rejects_url_encoded_traversal() {
+    export PROJECT_DIR="/tmp/test_project"
+    # Attempt URL-encoded directory traversal
+    export PROJECT_PARENT_DIR="$PROJECT_DIR/.claudebox/%2e%2e/%2e%2e/etc"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the traversal path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects URL-encoded traversal (%2e%2e)" test_profile_file_path_rejects_url_encoded_traversal
+
+# Test: get_profile_file_path() rejects prefix-bypass (e.g., ~/.claudeboxmalicious)
+test_profile_file_path_rejects_prefix_bypass() {
+    export PROJECT_DIR="/tmp/test_project"
+    # Attempt prefix bypass - looks like it starts with ~/.claudebox but isn't
+    export PROJECT_PARENT_DIR="$HOME/.claudeboxmalicious"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the malicious path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects prefix-bypass (.claudeboxmalicious)" test_profile_file_path_rejects_prefix_bypass
+
 echo
 echo "=============================================="
 echo "Test Summary"

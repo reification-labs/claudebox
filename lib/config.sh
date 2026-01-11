@@ -101,19 +101,22 @@ expand_profile() {
 
 # -------- Profile file management ---------------------------------------------
 # Validate PROJECT_PARENT_DIR is within expected bounds to prevent path injection
-# Valid locations: $HOME/.claudebox/* or $PROJECT_DIR/.claudebox
+# Valid locations: $HOME/.claudebox or $HOME/.claudebox/* or $PROJECT_DIR/.claudebox
 _validate_parent_dir() {
     local dir="$1"
-    # Reject paths containing directory traversal
-    if [[ "$dir" == *".."* ]]; then
+    # Reject paths containing directory traversal (literal or URL-encoded)
+    if [[ "$dir" == *".."* ]] || [[ "$dir" == *"%2e%2e"* ]] || [[ "$dir" == *"%2E%2E"* ]]; then
         return 1
     fi
-    # Must be under ~/.claudebox or a project's .claudebox
-    if [[ "$dir" == "$HOME/.claudebox"* ]]; then
+    # Must be exactly ~/.claudebox or under ~/.claudebox/ (with slash boundary)
+    if [[ "$dir" == "$HOME/.claudebox" ]] || [[ "$dir" == "$HOME/.claudebox/"* ]]; then
         return 0
     fi
-    if [[ -n "${PROJECT_DIR:-}" ]] && [[ "$dir" == "$PROJECT_DIR/.claudebox"* ]]; then
-        return 0
+    # Or exactly $PROJECT_DIR/.claudebox or under it (with slash boundary)
+    if [[ -n "${PROJECT_DIR:-}" ]]; then
+        if [[ "$dir" == "$PROJECT_DIR/.claudebox" ]] || [[ "$dir" == "$PROJECT_DIR/.claudebox/"* ]]; then
+            return 0
+        fi
     fi
     return 1
 }
@@ -295,16 +298,19 @@ get_profile_elixir() {
     # Security note: This profile enables network access to hex.pm registries
     # and native compilation (NIFs require gcc/make from core profile).
     # Only use with trusted code and agent configurations.
+    #
+    # Image pinned by SHA256 digest for reproducibility (elixir:1.19-otp-27-slim)
+    # To update: docker pull elixir:1.19-otp-27-slim && docker inspect --format='{{index .RepoDigests 0}}' elixir:1.19-otp-27-slim
     cat <<'EOF'
-# Copy Erlang/OTP 27 and Elixir 1.19 from official Docker image
-COPY --from=elixir:1.19-otp-27-slim /usr/local/lib/erlang /usr/local/lib/erlang
-COPY --from=elixir:1.19-otp-27-slim /usr/local/lib/elixir /usr/local/lib/elixir
-COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/erl /usr/local/bin/
-COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/erlc /usr/local/bin/
-COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/elixir /usr/local/bin/
-COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/elixirc /usr/local/bin/
-COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/iex /usr/local/bin/
-COPY --from=elixir:1.19-otp-27-slim /usr/local/bin/mix /usr/local/bin/
+# Copy Erlang/OTP 27 and Elixir 1.19 from official Docker image (pinned by digest)
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/lib/erlang /usr/local/lib/erlang
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/lib/elixir /usr/local/lib/elixir
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/bin/erl /usr/local/bin/
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/bin/erlc /usr/local/bin/
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/bin/elixir /usr/local/bin/
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/bin/elixirc /usr/local/bin/
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/bin/iex /usr/local/bin/
+COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/bin/mix /usr/local/bin/
 # Erlang/Elixir environment setup
 ENV LANG=C.UTF-8
 ENV ERL_ROOTDIR=/usr/local/lib/erlang
