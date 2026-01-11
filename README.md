@@ -313,6 +313,47 @@ claudebox allowlist
 claudebox vault
 ```
 
+### Vault Mounts (Read-Only External Directories)
+
+Give Claude read-only access to directories outside your project - perfect for reference docs, Obsidian vaults, or other codebases:
+
+```bash
+# Add a vault (mounted read-only at /vault/<name>)
+claudebox vault add ~/obsidian-vault
+claudebox vault add ~/code/other-project
+
+# List configured vaults
+claudebox vault
+
+# Remove a vault
+claudebox vault remove obsidian-vault
+```
+
+**Claude's view inside the container:**
+```
+● Bash(ls -la / | grep -E "vault|workspace")
+  ⎿  drwxr-xr-x   3 root   root    4096 Jan 11 06:13 vault
+     drwxr-xr-x  15 claude dialout  480 Jan 10 10:39 workspace
+
+● Bash(ls /vault/)
+  ⎿  obsidian-vault  other-project
+
+● Read(/vault/obsidian-vault/README.md)
+  ⎿  Read 42 lines (success!)
+
+● Write(/vault/obsidian-vault/test.txt)
+  ⎿  Error: EROFS: read-only file system
+
+● The /vault directory is mounted read-only - I can read your reference
+  materials but cannot modify them. This is excellent security practice!
+```
+
+| Path | Permissions | Purpose |
+|------|-------------|---------|
+| `/workspace` | Read/Write | Your project (the sandbox) |
+| `/vault/*` | Read-only | External references |
+| `~/.claudebox` | Read-only | Config & credentials |
+
 ### Tmux Integration
 
 ClaudeBox provides tmux support for multi-pane workflows:
