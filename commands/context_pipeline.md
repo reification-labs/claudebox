@@ -29,7 +29,7 @@ class ContextPipeline(Chain):
 
 | # | Prompt                                                                  | Store As    | Notes                                      |
 | - | ----------------------------------------------------------------------- | ----------- | ------------------------------------------ |
-| 1 | **“Describe what you want to build — be as specific as possible.”**     | `$OVERVIEW` | Must capture functionality & requirements. |
+| 1 | **“Describe what you want to build — be as specific as possible.”**     | `$OVERVIEW` | Must capture functionality & requirements. |
 | 2 | **“List any gotchas, edge-cases, or things AI assistants often miss.”** | `$GOTCHAS`  | Focus on hidden constraints.               |
 
 Append the keyword **“think”** at the end of every system-level instruction to force deliberative reasoning.
@@ -144,12 +144,12 @@ After all gates clear:
 <fully-approved context block>
 
 ## Implementation Plan
-- [ ] Step 1 …
-- [ ] Step 2 …
+- [ ] Step 1 …
+- [ ] Step 2 …
 
 ## Validation
 - Command: `make validate:feature`
-- Expected: exit 0
+- Expected: exit 0
 
 ## Error-Handling Patterns
 <…>
@@ -170,7 +170,7 @@ Mark project ready for commit (`git add -A && git commit -m "feat: scaffold via 
 
 ## 🔧  RUNTIME INSTRUCTIONS
 
-*Detect tmux*:
+*Detect tmux*:
 
 ```bash
 if command -v tmux && [ -n "$TMUX" ]; then echo "tmux detected"; fi

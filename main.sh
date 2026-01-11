@@ -573,11 +573,27 @@ build_docker_image() {
             [[ -n "$line" ]] && current_profiles+=("$line")
         done < <(read_profile_section "$profiles_file" "profiles")
 
-        # Generate profile installations
+        # Expand profiles to include dependencies (e.g., elixir -> core elixir)
+        local expanded_profiles=()
+        local seen_profiles=""
         for profile in "${current_profiles[@]}"; do
             profile=$(echo "$profile" | tr -d '[:space:]')
             [[ -z "$profile" ]] && continue
 
+            # Expand profile to include dependencies
+            local expanded
+            expanded=$(expand_profile "$profile")
+            for exp_profile in $expanded; do
+                # Deduplicate: only add if not already seen
+                if [[ " $seen_profiles " != *" $exp_profile "* ]]; then
+                    expanded_profiles+=("$exp_profile")
+                    seen_profiles+=" $exp_profile "
+                fi
+            done
+        done
+
+        # Generate profile installations from expanded list
+        for profile in "${expanded_profiles[@]}"; do
             # Convert hyphens to underscores for function names
             local profile_fn="get_profile_${profile//-/_}"
             if type -t "$profile_fn" >/dev/null; then

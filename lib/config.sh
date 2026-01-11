@@ -22,6 +22,7 @@ get_profile_packages() {
         rust) echo "" ;;       # Rust installed via rustup
         python) echo "" ;;     # Managed via uv
         go) echo "" ;;         # Installed from tarball
+        elixir) echo "" ;;     # Copied from official elixir Docker image
         flutter) echo "" ;;    # Installed from source
         javascript) echo "" ;; # Installed via nvm
         java) echo "" ;;       # Java installed via SDKMan, build tools in profile function
@@ -49,6 +50,7 @@ get_profile_description() {
         rust) echo "Rust Development (installed via rustup)" ;;
         python) echo "Python Development (managed via uv)" ;;
         go) echo "Go Development (installed from upstream archive)" ;;
+        elixir) echo "Elixir Development (Erlang/OTP + Elixir + Hex/Rebar)" ;;
         flutter) echo "Flutter Development (installed from fvm)" ;;
         javascript) echo "JavaScript/TypeScript (Node installed via nvm)" ;;
         java) echo "Java Development (latest LTS, Maven, Gradle, Ant via SDKMan)" ;;
@@ -66,7 +68,7 @@ get_profile_description() {
 }
 
 get_all_profile_names() {
-    echo "core build-tools shell networking c openwrt rust python go flutter javascript java ruby php database devops web embedded datascience security ml"
+    echo "core build-tools shell networking c openwrt rust python go elixir flutter javascript java ruby php database devops web embedded datascience security ml"
 }
 
 profile_exists() {
@@ -85,7 +87,7 @@ expand_profile() {
         c) echo "core build-tools c" ;;
         openwrt) echo "core build-tools openwrt" ;;
         ml) echo "core build-tools ml" ;;
-        rust | go | flutter | python | php | ruby | java | database | devops | web | embedded | datascience | security | javascript)
+        rust | go | elixir | flutter | python | php | ruby | java | database | devops | web | embedded | datascience | security | javascript)
             echo "core $1"
             ;;
         shell | networking | build-tools | core)
@@ -98,11 +100,66 @@ expand_profile() {
 }
 
 # -------- Profile file management ---------------------------------------------
+# Resolve symlinks in a path (Bash 3.2 compatible, no realpath dependency)
+# Returns the canonical path with symlinks resolved
+_resolve_path() {
+    local path="$1"
+    # If path exists, resolve it directly
+    if [[ -e "$path" ]]; then
+        (cd "$path" 2>/dev/null && pwd -P) || echo "$path"
+    # If path doesn't exist, resolve parent and append basename
+    elif [[ -e "$(dirname "$path")" ]]; then
+        local parent base
+        parent=$(cd "$(dirname "$path")" 2>/dev/null && pwd -P)
+        base=$(basename "$path")
+        echo "$parent/$base"
+    else
+        echo "$path"
+    fi
+}
+
+# Validate PROJECT_PARENT_DIR is within expected bounds to prevent path injection
+# Valid locations: $HOME/.claudebox or $HOME/.claudebox/* or $PROJECT_DIR/.claudebox
+# SECURITY: Resolves symlinks before validation to prevent symlink bypass attacks
+_validate_parent_dir() {
+    local dir="$1"
+    # Reject paths containing directory traversal (literal or URL-encoded)
+    if [[ "$dir" == *".."* ]] || [[ "$dir" == *"%2e%2e"* ]] || [[ "$dir" == *"%2E%2E"* ]]; then
+        return 1
+    fi
+    # Resolve symlinks to get the real path
+    local resolved_dir resolved_home
+    resolved_dir=$(_resolve_path "$dir")
+    resolved_home=$(_resolve_path "$HOME/.claudebox")
+    # Must be exactly ~/.claudebox or under ~/.claudebox/ (with slash boundary)
+    if [[ "$resolved_dir" == "$resolved_home" ]] || [[ "$resolved_dir" == "$resolved_home/"* ]]; then
+        return 0
+    fi
+    # Or exactly $PROJECT_DIR/.claudebox or under it (with slash boundary)
+    # SECURITY: We resolve PROJECT_DIR first, then check if the path is under that
+    # This prevents symlink attacks where .claudebox points outside the project
+    if [[ -n "${PROJECT_DIR:-}" ]]; then
+        local resolved_project_dir
+        resolved_project_dir=$(_resolve_path "$PROJECT_DIR")
+        # The target must be under $PROJECT_DIR/.claudebox (using resolved project dir)
+        if [[ "$resolved_dir" == "$resolved_project_dir/.claudebox" ]] || [[ "$resolved_dir" == "$resolved_project_dir/.claudebox/"* ]]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 get_profile_file_path() {
-    # Use the parent directory name, not the slot name
-    local parent_name
-    parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
-    local parent_dir="$HOME/.claudebox/projects/$parent_name"
+    local parent_dir parent_name
+    # Use PROJECT_PARENT_DIR (new local structure) if set and valid, else fall back
+    # Note: PROJECT_PARENT_DIR is set internally by main.sh, not user-overridable
+    if [[ -n "${PROJECT_PARENT_DIR:-}" ]] && _validate_parent_dir "$PROJECT_PARENT_DIR"; then
+        parent_dir="$PROJECT_PARENT_DIR"
+    else
+        # Fall back to old structure for backwards compatibility
+        parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
+        parent_dir="$HOME/.claudebox/projects/$parent_name"
+    fi
     mkdir -p "$parent_dir"
     echo "$parent_dir/profiles.ini"
 }
@@ -265,6 +322,35 @@ ENV PATH="/usr/local/go/bin:$PATH"
 EOF
 }
 
+get_profile_elixir() {
+    # Security note: This profile enables network access to hex.pm registries
+    # and native compilation (NIFs require gcc/make from core profile).
+    # Only use with trusted code and agent configurations.
+    #
+    # Image pinned by SHA256 digest for reproducibility (elixir:1.19-otp-27-slim)
+    # To update: docker pull elixir:1.19-otp-27-slim && docker inspect --format='{{index .RepoDigests 0}}' elixir:1.19-otp-27-slim
+    cat <<'EOF'
+# Copy Erlang/OTP 27 and Elixir 1.19 from official Docker image (pinned by digest)
+ARG ELIXIR_IMAGE=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d
+COPY --from=${ELIXIR_IMAGE} /usr/local/lib/erlang /usr/local/lib/erlang
+COPY --from=${ELIXIR_IMAGE} /usr/local/lib/elixir /usr/local/lib/elixir
+COPY --from=${ELIXIR_IMAGE} /usr/local/bin/erl /usr/local/bin/
+COPY --from=${ELIXIR_IMAGE} /usr/local/bin/erlc /usr/local/bin/
+COPY --from=${ELIXIR_IMAGE} /usr/local/bin/elixir /usr/local/bin/
+COPY --from=${ELIXIR_IMAGE} /usr/local/bin/elixirc /usr/local/bin/
+COPY --from=${ELIXIR_IMAGE} /usr/local/bin/iex /usr/local/bin/
+COPY --from=${ELIXIR_IMAGE} /usr/local/bin/mix /usr/local/bin/
+# Erlang/Elixir environment setup
+ENV LANG=C.UTF-8
+ENV ERL_ROOTDIR=/usr/local/lib/erlang
+ENV ERL_LIBS=/usr/local/lib/elixir/lib
+# Install Hex and Rebar for package management
+USER claude
+RUN mix local.hex --force && mix local.rebar --force
+USER root
+EOF
+}
+
 get_profile_flutter() {
     local flutter_version="${FLUTTER_SDK_VERSION:-stable}"
     cat <<EOF
@@ -383,9 +469,9 @@ get_profile_ml() {
     echo "# ML profile uses build-tools for compilation"
 }
 
-export -f _read_ini get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
+export -f _read_ini _resolve_path _validate_parent_dir get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
 export -f get_profile_file_path read_config_value read_profile_section update_profile_section get_current_profiles
 export -f get_profile_core get_profile_build_tools get_profile_shell get_profile_networking get_profile_c get_profile_openwrt
-export -f get_profile_rust get_profile_python get_profile_go get_profile_flutter get_profile_javascript get_profile_java get_profile_ruby
+export -f get_profile_rust get_profile_python get_profile_go get_profile_elixir get_profile_flutter get_profile_javascript get_profile_java get_profile_ruby
 export -f get_profile_php get_profile_database get_profile_devops get_profile_web get_profile_embedded get_profile_datascience
 export -f get_profile_security get_profile_ml

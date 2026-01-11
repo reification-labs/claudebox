@@ -158,7 +158,7 @@ ClaudeBox is a modular Bash application that creates isolated Docker environment
 - For colors/escapes, printf handles them correctly
 - This is a strict requirement for all ClaudeBox code
 
-## 1  Core Philosophy
+## 1  Core Philosophy
 
 | Principle                        | Rationale                                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -169,7 +169,7 @@ ClaudeBox is a modular Bash application that creates isolated Docker environment
 
 ---
 
-## 2  Mandatory Safety Flags
+## 2  Mandatory Safety Flags
 
 Add **exactly once** at the top of *every* executable script (after the shebang):
 
@@ -186,18 +186,18 @@ IFS=$'\n\t'
 
 ---
 
-## 3  Portability Rules (macOS - Linux)
+## 3  Portability Rules (macOS - Linux)
 
-1. **Interpreter** – prefer `#!/usr/bin/env bash` for Bash‑specific scripts; use `#!/bin/sh` *only* when 100 % POSIX‑compliant. ([stackoverflow.com][10])
-2. **Utilities** – restrict to POSIX options; when divergence exists, embed a compatibility shim:
+1. **Interpreter** – prefer `#!/usr/bin/env bash` for Bash‑specific scripts; use `#!/bin/sh` *only* when 100 % POSIX‑compliant. ([stackoverflow.com][10])
+2. **Utilities** – restrict to POSIX options; when divergence exists, embed a compatibility shim:
 
-   * `sed -i` requires a zero-length suffix on BSD; use `sed -i ''` **or** emit to temp file. ([stackoverflow.com][4], [unix.stackexchange.com][3])
+   * `sed -i` requires a zero-length suffix on BSD; use `sed -i ''` **or** emit to temp file. ([stackoverflow.com][4], [unix.stackexchange.com][3])
    * `mktemp` syntax differs; use the portable pattern below. ([unix.stackexchange.com][11])
    * `date` feature flags vary; rely on explicit format strings (`+%Y-%m-%dT%H:%M:%S%z`) then post‑process with `sed` for the colon in the offset. ([unix.stackexchange.com][12])
    * `readlink -f` is **not** on macOS; replace with a portable loop. ([stackoverflow.com][13])
    * Avoid `stat` entirely—output formats diverge. ([unix.stackexchange.com][14])
-3. **Option parsing** – `getopts` only; `getopt` is non‑portable and broken for empty/quoted args. ([unix.stackexchange.com][15])
-4. **Command discovery** – use `command -v`, never `which`, for spec‑defined behaviour. ([unix.stackexchange.com][16])
+3. **Option parsing** – `getopts` only; `getopt` is non‑portable and broken for empty/quoted args. ([unix.stackexchange.com][15])
+4. **Command discovery** – use `command -v`, never `which`, for spec‑defined behaviour. ([unix.stackexchange.com][16])
 5. **Conditional OS logic**
 
    ```bash
@@ -210,7 +210,7 @@ IFS=$'\n\t'
 
 ---
 
-## 4  Modular Structure
+## 4  Modular Structure
 
 ```text
 project/
@@ -227,7 +227,7 @@ project/
 
 ---
 
-## 5  Error Handling & Logging
+## 5  Error Handling & Logging
 
 ```bash
 trap 'fail $? ${LINENO:-0} "$BASH_COMMAND"' ERR
@@ -247,15 +247,15 @@ log() { printf '%s %s\n' "$(date +%FT%T%z)" "$*" >&2; }
 
 ---
 
-## 6  Testing & Continuous Assurance
+## 6  Testing & Continuous Assurance
 
-1. **Static analysis** – ShellCheck is required in CI; block merges on any warning level > style. ([github.com][7])
-2. **Unit tests** – write Bats cases for each public function; aim for ≥ 90 % statement coverage. ([github.com][8])
-3. **Mutation/Chaos** – periodically flip the `set -x` debug flag in CI to catch race conditions. ([mywiki.wooledge.org][19])
+1. **Static analysis** – ShellCheck is required in CI; block merges on any warning level > style. ([github.com][7])
+2. **Unit tests** – write Bats cases for each public function; aim for ≥ 90 % statement coverage. ([github.com][8])
+3. **Mutation/Chaos** – periodically flip the `set -x` debug flag in CI to catch race conditions. ([mywiki.wooledge.org][19])
 
 ---
 
-## 7  Absolutely Forbidden Shortcuts (“☠ DO NOT DO THIS ☠”)
+## 7  Absolutely Forbidden Shortcuts (“☠ DO NOT DO THIS ☠”)
 
 | Anti‑pattern                               | Safer alternative                                                                                          |        |                                |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------ | ------------------------------ |
@@ -267,7 +267,7 @@ log() { printf '%s %s\n' "$(date +%FT%T%z)" "$*" >&2; }
 
 ---
 
-## 8  Troubleshooting Playbook
+## 8  Troubleshooting Playbook
 
 | Scenario                          | Steps                                                                                                                                                 |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -278,7 +278,7 @@ log() { printf '%s %s\n' "$(date +%FT%T%z)" "$*" >&2; }
 
 ---
 
-## 9  Template Snippet (copy ↘︎)
+## 9  Template Snippet (copy ↘︎)
 
 ```bash
 #!/usr/bin/env bash
@@ -298,7 +298,7 @@ main() {
 main "$@"
 ```
 
-This skeleton already satisfies every rule in this document and passes `shellcheck` + `bats-core` on both macOS 14 (BSD userland) and Ubuntu 24.04 (GNU userland).
+This skeleton already satisfies every rule in this document and passes `shellcheck` + `bats-core` on both macOS 14 (BSD userland) and Ubuntu 24.04 (GNU userland).
 
 ## Personality
 

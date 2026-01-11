@@ -106,6 +106,140 @@ test_env_help_exists() {
 run_test "_env_help() for 'claudebox env help'" test_env_help_exists
 
 echo
+echo "3. Profile file path respects new structure"
+echo "--------------------------------------------"
+
+# Source project.sh for generate_parent_folder_name (used by get_profile_file_path fallback)
+source "$CLAUDEBOX_ROOT/lib/project.sh"
+# Source config.sh for get_profile_file_path
+source "$CLAUDEBOX_ROOT/lib/config.sh"
+
+# Test: get_profile_file_path() uses PROJECT_PARENT_DIR when set
+test_profile_file_path_uses_project_parent_dir() {
+    # Set PROJECT_PARENT_DIR to a valid path (must be under PROJECT_DIR/.claudebox
+    # or HOME/.claudebox due to path validation security check)
+    local test_project="/tmp/test_project_$$"
+    local test_dir="$test_project/.claudebox"
+
+    # Create directories first (required for symlink resolution)
+    mkdir -p "$test_dir"
+
+    export PROJECT_DIR="$test_project"
+    export PROJECT_PARENT_DIR="$test_dir"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+    rm -rf "$test_project" 2>/dev/null || true
+
+    # Should use PROJECT_PARENT_DIR (resolved path on macOS includes /private)
+    # Check that the result ends with our expected suffix
+    [[ "$result" == *"$test_dir/profiles.ini" ]] || [[ "$result" == */private"$test_dir/profiles.ini" ]]
+}
+run_test "get_profile_file_path() respects PROJECT_PARENT_DIR" test_profile_file_path_uses_project_parent_dir
+
+# Test: get_profile_file_path() rejects invalid PROJECT_PARENT_DIR (path injection protection)
+test_profile_file_path_rejects_invalid_paths() {
+    # Try to set PROJECT_PARENT_DIR to an invalid path (outside allowed bounds)
+    export PROJECT_PARENT_DIR="/tmp/malicious_path"
+    export PROJECT_DIR="/some/project"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the invalid path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects invalid PROJECT_PARENT_DIR" test_profile_file_path_rejects_invalid_paths
+
+# Test: get_profile_file_path() rejects directory traversal attempts
+test_profile_file_path_rejects_traversal() {
+    export PROJECT_DIR="/tmp/test_project"
+    # Attempt directory traversal
+    export PROJECT_PARENT_DIR="$PROJECT_DIR/.claudebox/../../../etc"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the traversal path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects directory traversal" test_profile_file_path_rejects_traversal
+
+# Test: get_profile_file_path() rejects URL-encoded directory traversal (%2e%2e)
+test_profile_file_path_rejects_url_encoded_traversal() {
+    export PROJECT_DIR="/tmp/test_project"
+    # Attempt URL-encoded directory traversal
+    export PROJECT_PARENT_DIR="$PROJECT_DIR/.claudebox/%2e%2e/%2e%2e/etc"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the traversal path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects URL-encoded traversal (%2e%2e)" test_profile_file_path_rejects_url_encoded_traversal
+
+# Test: get_profile_file_path() rejects prefix-bypass (e.g., ~/.claudeboxmalicious)
+test_profile_file_path_rejects_prefix_bypass() {
+    export PROJECT_DIR="/tmp/test_project"
+    # Attempt prefix bypass - looks like it starts with ~/.claudebox but isn't
+    export PROJECT_PARENT_DIR="$HOME/.claudeboxmalicious"
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+
+    # Should NOT use the malicious path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects prefix-bypass (.claudeboxmalicious)" test_profile_file_path_rejects_prefix_bypass
+
+# Test: get_profile_file_path() rejects symlink bypass (symlink pointing outside allowed dirs)
+test_profile_file_path_rejects_symlink_bypass() {
+    local test_project="/tmp/test_project_symlink_$$"
+    local malicious_target="/tmp/malicious_target_$$"
+
+    # Create test structure with symlink bypass attempt
+    mkdir -p "$test_project"
+    mkdir -p "$malicious_target"
+    ln -sf "$malicious_target" "$test_project/.claudebox"
+
+    export PROJECT_DIR="$test_project"
+    export PROJECT_PARENT_DIR="$test_project/.claudebox"  # Looks valid, but symlinks to /tmp/malicious_target
+
+    local result
+    result=$(get_profile_file_path)
+
+    # Clean up
+    unset PROJECT_PARENT_DIR
+    unset PROJECT_DIR
+    rm -rf "$test_project" "$malicious_target" 2>/dev/null || true
+
+    # Should NOT use the symlinked path, should fall back to ~/.claudebox/projects/
+    [[ "$result" == "$HOME/.claudebox/projects/"* ]]
+}
+run_test "get_profile_file_path() rejects symlink bypass" test_profile_file_path_rejects_symlink_bypass
+
+echo
 echo "=============================================="
 echo "Test Summary"
 echo "=============================================="

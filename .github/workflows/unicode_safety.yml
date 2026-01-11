@@ -1,0 +1,33 @@
+name: Unicode Safety Scan
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  unicode-safety:
+    name: Scan for bidi/hidden unicode
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Unicode safety scan (strict)
+        run: python3 scripts/unicode_safety_scan.py
+
+      # Optional: show docs-only warnings without failing CI
+      # (handy if you want visibility but don't want docs typography to block merges)
+      - name: Unicode safety scan (docs warnings)
+        run: python3 scripts/unicode_safety_scan.py --warn-docs
+        continue-on-error: true

@@ -605,9 +605,38 @@ my_var=$(some_command)
 
 ### CI Configuration
 
-CI uses `--severity=warning` to skip info-level suggestions:
-- **error/warning**: Real issues that should be fixed
-- **info**: Suggestions like "use find instead of ls" - often too pedantic
+#### Unicode Safety Scan
+
+##### BIDI (Trojan Source)
+
+These are **bidirectional (BiDi) control characters** — invisible marks that can make text *display* left-to-right while *logically* being right-to-left (or vice versa). Classic “what you see isn’t what runs” trick in code.
+
+Common ones:
+
+* **LRE / RLE** — Left/Right-to-Left Embedding (`U+202A`, `U+202B`)
+* **LRO / RLO** — Left/Right-to-Left Override (`U+202D`, `U+202E`)
+* **PDF** — Pop Directional Formatting (`U+202C`)
+* **LRI / RLI / FSI / PDI** — isolate controls (`U+2066`–`U+2069`)
+* **LRM / RLM** — left/right marks (`U+200E`, `U+200F`)
+
+##### The emoji “no-space space” one
+
+That one is a **zero-width joiner**, abbreviated **ZWJ**:
+
+* **ZWJ** = `U+200D`
+  It’s what turns `👩 + 🔬` into the combined emoji `👩‍🔬` by *joining* them invisibly.
+
+Related “invisible gremlins”:
+
+* **ZWSP** = Zero Width Space (`U+200B`)
+* **ZWNJ** = Zero Width Non-Joiner (`U+200C`)
+* **WJ** = Word Joiner (`U+2060`)
+* **BOM / ZWNBSP** = `U+FEFF` (often shows up at file starts)
+
+##### The “fancy whitespace”
+
+* **NBSP** = No-Break Space (`U+00A0`)
+* **NNBSP** = Narrow No-Break Space (`U+202F`)
 
 ## 🤝 Contributing
 

@@ -42,3 +42,10 @@ bitbucket-pipelines-prod-eu-west-1.s3.amazonaws.com
 github-cloud.s3.amazonaws.com
 github-releases.githubusercontent.com
 github-production-release-asset-2e65be.s3.amazonaws.com
+
+# Elixir/Erlang (package registries for mix deps.get)
+# Security: Enables outbound network to Hex package registry.
+# Use only with trusted Elixir projects and agent configurations.
+hex.pm
+repo.hex.pm
+hexdocs.pm
