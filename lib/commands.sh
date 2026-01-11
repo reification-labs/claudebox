@@ -42,11 +42,11 @@ source "${LIB_DIR}/commands.profile.sh"
 # ============================================================================
 # INFO COMMANDS - Information display
 # ============================================================================
-# Commands: info, projects, allowlist
+# Commands: info, projects, allowlist, vault
 # - info: Shows comprehensive project and system information
 # - projects: Lists all ClaudeBox projects system-wide
 # - allowlist: Shows/manages the firewall allowlist
-# - mount: Shows/manages custom volume mounts
+# - vault: Shows/manages read-only vault mounts
 # shellcheck source=commands.info.sh
 source "${LIB_DIR}/commands.info.sh"
 
@@ -139,7 +139,7 @@ show_help() {
   shell                           Open transient shell
   shell admin                     Open admin shell (sudo enabled)
   allowlist                       Show/edit firewall allowlist
-  mount                           Show/edit custom volume mounts
+  vault                           Show/edit read-only vault mounts
   info                            Show comprehensive project info
   clean                           Menu of cleanup tasks
   project <name>                  Open project by name/hash from anywhere
@@ -255,7 +255,7 @@ show_full_help() {
   shell                           Open transient shell\
   shell admin                     Open admin shell (sudo enabled)\
   allowlist                       Show/edit firewall allowlist\
-  mount                           Show/edit custom volume mounts\
+  vault                           Show/edit read-only vault mounts\
   info                            Show comprehensive project info\
   clean                           Menu of cleanup tasks\
   project <name>                  Open project by name/hash from anywhere\
@@ -303,7 +303,7 @@ dispatch_command() {
         # Info commands
         projects) _cmd_projects "$@" ;;
         allowlist) _cmd_allowlist "$@" ;;
-        mount) _cmd_mount "$@" ;;
+        vault) _cmd_vault "$@" ;;
         info) _cmd_info "$@" ;;
 
         # Clean commands

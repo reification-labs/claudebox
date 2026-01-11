@@ -670,10 +670,19 @@ sync_commands_to_project() {
 get_profile_dir() {
     local profile_name="${1:-default}"
 
-    # Security: Reject path traversal attempts
-    # Profile names must be alphanumeric with hyphens/underscores only
-    if [[ "$profile_name" =~ [./] ]] || [[ "$profile_name" =~ ^- ]]; then
-        echo "Error: Invalid profile name '$profile_name' - must be alphanumeric with hyphens/underscores only" >&2
+    # Security: Reject empty or whitespace-only names
+    # This prevents paths like ".claudebox/profiles/" with no profile name
+    local trimmed="${profile_name//[[:space:]]/}"
+    if [[ -z "$trimmed" ]]; then
+        echo "Error: Profile name cannot be empty or whitespace-only" >&2
+        return 1
+    fi
+
+    # Security: Reject path traversal attempts and invalid characters
+    # Profile names must match: alphanumeric, hyphens, underscores only
+    # Leading hyphen rejected (could be confused with CLI flags)
+    if [[ "$profile_name" =~ [./] ]] || [[ "$profile_name" =~ ^- ]] || [[ ! "$profile_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "Error: Invalid profile name '$profile_name' - must be alphanumeric with hyphens/underscores only, cannot start with hyphen" >&2
         return 1
     fi
 

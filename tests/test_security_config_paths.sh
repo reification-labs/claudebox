@@ -1,7 +1,7 @@
 #!/bin/bash
 # Unit Test: Verify security-critical file paths are in global config
 #
-# SPEC REQUIREMENT: mounts/allowlist must be in ~/.claudebox/ (global config),
+# SPEC REQUIREMENT: vault/allowlist must be in ~/.claudebox/ (global config),
 # NOT in $PROJECT_DIR/.claudebox (which is inside /workspace and writable)
 #
 # Run: bash tests/test_security_config_paths.sh
@@ -12,7 +12,7 @@ echo "=============================================="
 echo "Unit Test: Security Config Path Verification"
 echo "=============================================="
 echo
-echo "Verifying that mounts/allowlist paths point to"
+echo "Verifying that vault/allowlist paths point to"
 echo "global config (~/.claudebox), not project dir."
 echo
 
@@ -47,8 +47,8 @@ run_test() {
     fi
 }
 
-echo "1. Checking docker.sh uses global config for mounts"
-echo "----------------------------------------------------"
+echo "1. Checking docker.sh uses global config for vault"
+echo "--------------------------------------------------"
 
 # Test: docker.sh should define global_config_dir as $HOME/.claudebox
 test_docker_global_config_defined() {
@@ -56,11 +56,11 @@ test_docker_global_config_defined() {
 }
 run_test "docker.sh defines global_config_dir as \$HOME/.claudebox" test_docker_global_config_defined
 
-# Test: docker.sh should use global_config_dir for mounts_file
-test_docker_mounts_uses_global() {
-    grep -q 'mounts_file="\$global_config_dir/mounts"' "$CLAUDEBOX_ROOT/lib/docker.sh"
+# Test: docker.sh should use global_config_dir for vault_file
+test_docker_vault_uses_global() {
+    grep -q 'vault_file="\$global_config_dir/vault"' "$CLAUDEBOX_ROOT/lib/docker.sh"
 }
-run_test "docker.sh uses global_config_dir for mounts_file" test_docker_mounts_uses_global
+run_test "docker.sh uses global_config_dir for vault_file" test_docker_vault_uses_global
 
 # Test: docker.sh should mount global_config_dir as .claudebox:ro
 test_docker_mounts_global_ro() {
@@ -78,21 +78,21 @@ test_allowlist_global_path() {
 }
 run_test "allowlist uses \$HOME/.claudebox path" test_allowlist_global_path
 
-# Test: mounts command should use $HOME/.claudebox
-test_mount_cmd_global_path() {
-    grep -q 'mounts_file="\$HOME/.claudebox/mounts"' "$CLAUDEBOX_ROOT/lib/commands.info.sh"
+# Test: vault command should use $HOME/.claudebox
+test_vault_cmd_global_path() {
+    grep -q 'vault_file="\$HOME/.claudebox/vault"' "$CLAUDEBOX_ROOT/lib/commands.info.sh"
 }
-run_test "mount command uses \$HOME/.claudebox path" test_mount_cmd_global_path
+run_test "vault command uses \$HOME/.claudebox path" test_vault_cmd_global_path
 
 echo
 echo "3. Negative tests: Should NOT use PROJECT_PARENT_DIR for security files"
 echo "------------------------------------------------------------------------"
 
-# Test: docker.sh mounts_file should NOT use PROJECT_PARENT_DIR
-test_docker_no_project_parent_mounts() {
-    ! grep -q 'mounts_file="\$PROJECT_PARENT_DIR/mounts"' "$CLAUDEBOX_ROOT/lib/docker.sh"
+# Test: docker.sh vault_file should NOT use PROJECT_PARENT_DIR
+test_docker_no_project_parent_vault() {
+    ! grep -q 'vault_file="\$PROJECT_PARENT_DIR/vault"' "$CLAUDEBOX_ROOT/lib/docker.sh"
 }
-run_test "docker.sh does NOT use PROJECT_PARENT_DIR for mounts" test_docker_no_project_parent_mounts
+run_test "docker.sh does NOT use PROJECT_PARENT_DIR for vault" test_docker_no_project_parent_vault
 
 # Test: commands.info.sh allowlist should NOT use PROJECT_PARENT_DIR
 test_info_no_project_parent_allowlist() {
@@ -100,11 +100,11 @@ test_info_no_project_parent_allowlist() {
 }
 run_test "commands.info.sh does NOT use PROJECT_PARENT_DIR for allowlist" test_info_no_project_parent_allowlist
 
-# Test: commands.info.sh mounts should NOT use PROJECT_PARENT_DIR
-test_info_no_project_parent_mounts() {
-    ! grep -q 'mounts_file="\$PROJECT_PARENT_DIR/mounts"' "$CLAUDEBOX_ROOT/lib/commands.info.sh"
+# Test: commands.info.sh vault should NOT use PROJECT_PARENT_DIR
+test_info_no_project_parent_vault() {
+    ! grep -q 'vault_file="\$PROJECT_PARENT_DIR/vault"' "$CLAUDEBOX_ROOT/lib/commands.info.sh"
 }
-run_test "commands.info.sh does NOT use PROJECT_PARENT_DIR for mounts" test_info_no_project_parent_mounts
+run_test "commands.info.sh does NOT use PROJECT_PARENT_DIR for vault" test_info_no_project_parent_vault
 
 echo
 echo "4. Checking ~/.claudebox created with secure permissions"
@@ -133,7 +133,7 @@ if [[ $TESTS_PASSED -eq $TESTS_RUN ]]; then
 else
     echo -e "${RED}SECURITY PATH TESTS FAILED ✗${NC}"
     echo
-    echo "mounts/allowlist MUST be read from ~/.claudebox/ (global config),"
+    echo "vault/allowlist MUST be read from ~/.claudebox/ (global config),"
     echo "NOT from \$PROJECT_DIR/.claudebox (which is inside /workspace)"
     echo
     echo "See: specs/2026-01-10_01-51_profile-refactor.md"

@@ -238,96 +238,113 @@ _cmd_info() {
     exit 0
 }
 
-_cmd_mount() {
-    # SECURITY: Mounts file is stored in global config (~/.claudebox), NOT project directory
+_cmd_vault() {
+    # SECURITY: Vault file is stored in global config (~/.claudebox), NOT project directory
     # This prevents sandbox escape via /workspace/.claudebox modification
-    local mounts_file="$HOME/.claudebox/mounts"
+    local vault_file="$HOME/.claudebox/vault"
     local subcommand="${1:-}"
     shift || true
 
     # Handle subcommands
     case "$subcommand" in
         add)
-            local mount_spec="${1:-}"
-            if [[ -z "$mount_spec" ]]; then
-                error "Usage: claudebox mount add <host_path>:<container_path>:<mode>
+            local host_path="${1:-}"
+            if [[ -z "$host_path" ]]; then
+                error "Usage: claudebox vault add <host_path>
 Examples:
-  claudebox mount add /path/to/vault:/workspace/.vault/name:ro
-  claudebox mount add ~/docs:/workspace/docs:ro
-  claudebox mount add /tmp/scratch:/workspace/scratch:rw
+  claudebox vault add /path/to/my/vault
+  claudebox vault add ~/docs
+  claudebox vault add /home/user/obsidian
 
-Mode must be 'ro' (read-only) or 'rw' (read-write)
-Note: Colons (:) in paths are not supported (used as field separator)"
-            fi
-
-            # Validate no embedded newlines (would corrupt mounts file)
-            if [[ "$mount_spec" == *$'\n'* ]]; then
-                error "Invalid mount specification: must not contain newline characters"
-            fi
-
-            # Validate exactly 2 colons (host:container:mode)
-            local colon_count="${mount_spec//[^:]/}"
-            if [[ ${#colon_count} -ne 2 ]]; then
-                error "Invalid mount format. Expected exactly 2 colons: <host_path>:<container_path>:<mode>
-Got: $mount_spec
-
-Colons (:) are reserved as field separators and cannot appear inside paths.
-Windows users: Use WSL2 paths instead (e.g., /mnt/c/Users/... instead of C:\\Users\\...)"
-            fi
-
-            # Validate format: host:container:mode
-            local host_path container_path mode
-            IFS=':' read -r host_path container_path mode <<<"$mount_spec"
-
-            if [[ -z "$host_path" ]] || [[ -z "$container_path" ]] || [[ -z "$mode" ]]; then
-                error "Invalid mount format. Expected: <host_path>:<container_path>:<mode>
-Got: $mount_spec"
+The directory will be mounted read-only at /vault/<dirname>
+For example: ~/docs -> /vault/docs:ro"
             fi
 
             # Expand ~ in host path
             host_path="${host_path/#\~/$HOME}"
 
-            # Validate mode
-            if [[ "$mode" != "ro" ]] && [[ "$mode" != "rw" ]]; then
-                error "Invalid mode '$mode'. Must be 'ro' (read-only) or 'rw' (read-write)"
+            # SECURITY: Validate path is absolute (no relative paths)
+            if [[ ! "$host_path" =~ ^/ ]]; then
+                error "Security: Host path must be absolute (start with /)
+Got: $host_path
+
+Use full paths like /home/user/vault or ~/vault"
             fi
 
-            # Validate host path exists
+            # SECURITY: Reject path traversal attempts
+            if [[ "$host_path" == *".."* ]]; then
+                error "Security: Path traversal not allowed (contains '..')
+Got: $host_path"
+            fi
+
+            # SECURITY: Reject symlinks (could point to sensitive locations)
+            if [[ -L "$host_path" ]]; then
+                error "Security: Symlinks are not allowed
+Got: $host_path
+
+Symlinks could point to sensitive directories. Use the real path instead:
+  $(readlink -f "$host_path" 2>/dev/null || echo "<could not resolve>")"
+            fi
+
+            # Validate host path exists and is a directory
             if [[ ! -e "$host_path" ]]; then
-                warn "Warning: Host path does not exist: $host_path"
-                cecho "Mount will fail at container start if path doesn't exist." "$YELLOW"
+                warn "Warning: Path does not exist: $host_path"
+                cecho "Vault mount will fail at container start if path doesn't exist." "$YELLOW"
                 echo
                 read -p "Add anyway? (y/N) " -n 1 -r
                 echo
                 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                    info "Mount not added"
+                    info "Vault not added"
                     exit 0
                 fi
+            elif [[ ! -d "$host_path" ]]; then
+                error "Path must be a directory, not a file: $host_path"
             fi
 
-            # Create mounts file if needed
-            if [[ ! -f "$mounts_file" ]]; then
-                mkdir -p "$(dirname "$mounts_file")"
-                cat >"$mounts_file" <<'HEADER'
-# ClaudeBox Custom Volume Mounts
-# Format: host_path:container_path:mode
-# Mode: ro (read-only) or rw (read-write)
+            # Derive container path from directory name
+            local vault_name
+            vault_name=$(basename "$host_path")
+            local container_path="/vault/$vault_name"
+
+            # Create vault file if needed
+            if [[ ! -f "$vault_file" ]]; then
+                mkdir -p "$(dirname "$vault_file")"
+                cat >"$vault_file" <<'HEADER'
+# ClaudeBox Vault Mounts
+# Format: host_path (one path per line)
+# All mounts are read-only and appear at /vault/<dirname>
 # Lines starting with # are comments
 #
 # Example:
-# /path/to/vault:/workspace/.vault/name:ro
+# /home/user/obsidian-vault
+# ~/documents
 HEADER
             fi
 
-            # Check for duplicate container path (exact field match, not substring)
-            if awk -F: -v cp="$container_path" '!/^#/ && $2 == cp { found=1; exit 0 } END { exit (found ? 0 : 1) }' "$mounts_file" 2>/dev/null; then
-                error "A mount already exists for container path: $container_path
-Use 'claudebox mount remove $container_path' first"
+            # Check for duplicate (same host path or same vault name)
+            if grep -q "^${host_path}$" "$vault_file" 2>/dev/null; then
+                error "This path is already in the vault: $host_path"
             fi
 
-            # Add the mount
-            echo "${host_path}:${container_path}:${mode}" >>"$mounts_file"
-            success "Added mount: $host_path -> $container_path ($mode)"
+            # Check if vault name would conflict
+            local existing_conflict
+            existing_conflict=$(grep -v "^#" "$vault_file" 2>/dev/null | while read -r line; do
+                [[ -z "$line" ]] && continue
+                local existing_name
+                existing_name=$(basename "${line/#\~/$HOME}")
+                if [[ "$existing_name" == "$vault_name" ]]; then
+                    echo "$line"
+                    break
+                fi
+            done)
+            if [[ -n "$existing_conflict" ]]; then
+                error "A vault with name '$vault_name' already exists from: $existing_conflict
+Choose a directory with a different name, or rename your directory."
+            fi
+
+            # Add the vault
+            echo "$host_path" >>"$vault_file"
+            success "Added vault: $host_path -> $container_path (ro)"
             echo
             cecho "Note:" "$WHITE"
             echo "  Changes take effect on next container start"
@@ -337,15 +354,20 @@ Use 'claudebox mount remove $container_path' first"
         remove)
             local target="${1:-}"
             if [[ -z "$target" ]]; then
-                error "Usage: claudebox mount remove <container_path>
-Example: claudebox mount remove /workspace/.vault/name"
+                error "Usage: claudebox vault remove <path_or_name>
+Examples:
+  claudebox vault remove /home/user/vault
+  claudebox vault remove docs    # removes by vault name"
             fi
 
-            if [[ ! -f "$mounts_file" ]]; then
-                error "No mounts configured for this project"
+            if [[ ! -f "$vault_file" ]]; then
+                error "No vaults configured"
             fi
 
-            # Find and remove the mount (exact field match, not substring)
+            # Expand ~ if present
+            target="${target/#\~/$HOME}"
+
+            # Find and remove the vault (by full path or by name)
             local found=false
             local temp_file
             temp_file=$(mktemp)
@@ -353,103 +375,109 @@ Example: claudebox mount remove /workspace/.vault/name"
                 if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
                     echo "$line" >>"$temp_file"
                 else
-                    # Parse line and check container_path (field 2) exactly
-                    local line_container_path
-                    IFS=':' read -r _ line_container_path _ <<<"$line"
-                    if [[ "$line_container_path" == "$target" ]]; then
+                    local expanded_line="${line/#\~/$HOME}"
+                    local line_name
+                    line_name=$(basename "$expanded_line")
+
+                    # Match by full path or by vault name
+                    if [[ "$expanded_line" == "$target" ]] || [[ "$line_name" == "$target" ]]; then
                         found=true
                         info "Removing: $line"
                     else
                         echo "$line" >>"$temp_file"
                     fi
                 fi
-            done <"$mounts_file"
+            done <"$vault_file"
 
             if [[ "$found" == "true" ]]; then
-                mv "$temp_file" "$mounts_file"
-                success "Mount removed"
+                mv "$temp_file" "$vault_file"
+                success "Vault removed"
                 echo
                 cecho "Note:" "$WHITE"
                 echo "  Changes take effect on next container start"
             else
                 rm -f "$temp_file"
-                error "No mount found for container path: $target"
+                error "No vault found matching: $target"
             fi
             exit 0
             ;;
 
         "")
-            # Show current mounts (default behavior)
+            # Show current vaults (default behavior)
             ;;
 
         *)
             error "Unknown subcommand: $subcommand
 Usage:
-  claudebox mount              Show configured mounts
-  claudebox mount add <spec>   Add a mount (host:container:mode)
-  claudebox mount remove <path> Remove a mount by container path"
+  claudebox vault              Show configured vaults
+  claudebox vault add <path>   Add a directory to vault (read-only)
+  claudebox vault remove <path> Remove a vault by path or name"
             ;;
     esac
 
-    # Show current mounts
-    cecho "📁 ClaudeBox Custom Volume Mounts" "$CYAN"
+    # Show current vaults
+    cecho "🔒 ClaudeBox Vault (Read-Only Mounts)" "$CYAN"
     echo
     cecho "Current Project: $PROJECT_DIR" "$WHITE"
     echo
 
-    if [[ -f "$mounts_file" ]]; then
-        cecho "Mounts file:" "$GREEN"
-        echo "  $mounts_file"
+    if [[ -f "$vault_file" ]]; then
+        cecho "Vault file:" "$GREEN"
+        echo "  $vault_file"
         echo
 
-        # Count and display mounts
-        local mount_count=0
-        cecho "Configured mounts:" "$CYAN"
+        # Count and display vaults
+        local vault_count=0
+        cecho "Configured vaults:" "$CYAN"
         while IFS= read -r line; do
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^#.* ]]; then
-                local host_path container_path mode
-                IFS=':' read -r host_path container_path mode <<<"$line"
+                # Expand tilde
+                local expanded_path="${line/#\~/$HOME}"
+                local vault_name
+                vault_name=$(basename "$expanded_path")
+                local container_path="/vault/$vault_name"
 
-                # Check if host path exists (expand tilde first)
-                local expanded_host_path="${host_path/#\~/$HOME}"
+                # Check status
                 local status_icon="✓"
                 local status_color="$GREEN"
-                if [[ ! -e "$expanded_host_path" ]]; then
+                if [[ ! -e "$expanded_path" ]]; then
                     status_icon="✗"
                     status_color="$RED"
+                elif [[ -L "$expanded_path" ]]; then
+                    status_icon="⚠"
+                    status_color="$YELLOW"
                 fi
 
-                printf "  ${status_color}${status_icon}${NC} %s -> %s (%s)\n" "$host_path" "$container_path" "$mode"
-                ((mount_count++)) || true
+                printf "  ${status_color}${status_icon}${NC} %s -> %s (ro)\n" "$line" "$container_path"
+                ((vault_count++)) || true
             fi
-        done <"$mounts_file"
+        done <"$vault_file"
 
-        if [[ $mount_count -eq 0 ]]; then
+        if [[ $vault_count -eq 0 ]]; then
             echo "  (none configured)"
         fi
         echo
     else
-        cecho "Mounts file:" "$YELLOW"
+        cecho "Vault file:" "$YELLOW"
         echo "  Not yet created"
-        echo "  Location: $mounts_file"
+        echo "  Location: $vault_file"
         echo
-        cecho "No custom mounts configured." "$WHITE"
+        cecho "No vaults configured." "$WHITE"
     fi
 
     echo
-    cecho "Default mounts (always included):" "$CYAN"
-    echo "  \$PROJECT_DIR -> /workspace (rw)"
-    echo "  ~/.claudebox -> /home/claude/.claudebox (rw)"
-    echo "  ~/.ssh -> /home/claude/.ssh (ro)"
-    echo
     cecho "Usage:" "$YELLOW"
-    echo "  claudebox mount add <host>:<container>:<mode>   Add a mount"
-    echo "  claudebox mount remove <container_path>         Remove a mount"
-    echo "  \$EDITOR $mounts_file                           Edit directly"
+    echo "  claudebox vault add <path>      Add a directory (read-only at /vault/<name>)"
+    echo "  claudebox vault remove <path>   Remove a vault"
     echo
     cecho "Examples:" "$GREEN"
-    echo "  claudebox mount add ~/vault:/workspace/.vault/obsidian:ro"
-    echo "  claudebox mount add /tmp/data:/workspace/data:rw"
+    echo "  claudebox vault add ~/obsidian-vault   -> /vault/obsidian-vault:ro"
+    echo "  claudebox vault add /home/user/docs    -> /vault/docs:ro"
+    echo
+    cecho "Security:" "$WHITE"
+    echo "  • All vaults are mounted read-only (no footguns)"
+    echo "  • Symlinks are rejected (prevents privilege escalation)"
+    echo "  • Path traversal (..) is rejected"
     echo
     cecho "Note:" "$WHITE"
     echo "  Changes take effect on next container start"
@@ -457,4 +485,4 @@ Usage:
     exit 0
 }
 
-export -f _cmd_projects _cmd_allowlist _cmd_mount _cmd_info
+export -f _cmd_projects _cmd_allowlist _cmd_vault _cmd_info

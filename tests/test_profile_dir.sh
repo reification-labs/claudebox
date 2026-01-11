@@ -172,6 +172,32 @@ test_accepts_valid_names() {
 }
 run_test "get_profile_dir accepts valid name 'my-profile_123'" test_accepts_valid_names
 
+# Test: Empty string defaults to 'default' (bash ${1:-default} handles this)
+test_empty_defaults_to_default() {
+    local result
+    result=$(get_profile_dir "")
+    [[ "$result" == "$PROJECT_DIR/.claudebox/profiles/default" ]]
+}
+run_test "get_profile_dir with empty string defaults to 'default'" test_empty_defaults_to_default
+
+# Test: Whitespace-only profile name is rejected
+test_rejects_whitespace_name() {
+    if result=$(get_profile_dir "   " 2>&1); then
+        return 1
+    fi
+    return 0
+}
+run_test "get_profile_dir rejects whitespace-only name" test_rejects_whitespace_name
+
+# Test: Leading hyphen is rejected (could be confused with CLI flags)
+test_rejects_leading_hyphen() {
+    if result=$(get_profile_dir "-profile" 2>&1); then
+        return 1
+    fi
+    return 0
+}
+run_test "get_profile_dir rejects leading hyphen '-profile'" test_rejects_leading_hyphen
+
 echo
 echo "=============================================="
 echo "Test Summary"

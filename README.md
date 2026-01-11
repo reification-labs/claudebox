@@ -309,8 +309,8 @@ claudebox update
 # View/edit firewall allowlist
 claudebox allowlist
 
-# View/edit custom volume mounts
-claudebox mount
+# View/manage read-only vault mounts
+claudebox vault
 ```
 
 ### Tmux Integration
@@ -390,7 +390,7 @@ ClaudeBox uses a secure two-tier configuration model:
 
 ### Global Configuration (`~/.claudebox/`)
 Mounted **read-only** in the container for security:
-- `mounts` - Custom volume mount definitions
+- `vault` - Read-only directory mounts (appears at `/vault/<name>` in container)
 - `allowlist` - Network firewall allowlist
 - `profiles.ini` - Development environment profiles (python, rust, etc.)
 - `common.sh` - Shared utilities

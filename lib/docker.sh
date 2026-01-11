@@ -253,55 +253,51 @@ run_claudebox_container() {
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
 
-    # Mount custom volumes from mounts file (ALWAYS from global config for security)
-    local mounts_file="$global_config_dir/mounts"
-    if [[ -f "$mounts_file" ]]; then
+    # Mount vault directories (NEW secure format: always read-only, /vault/<name>)
+    local vault_file="$global_config_dir/vault"
+    if [[ -f "$vault_file" ]]; then
         while IFS= read -r line; do
             # Skip comments and empty lines
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^#.* ]]; then
-                local host_path container_path mode
-                IFS=':' read -r host_path container_path mode <<<"$line"
-
-                # Validate all fields are non-empty
-                if [[ -z "$host_path" || -z "$container_path" || -z "$mode" ]]; then
-                    if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping malformed mount (empty field): $line" >&2
-                    fi
-                    continue
-                fi
-
-                # Validate mode is ro or rw
-                if [[ "$mode" != "ro" && "$mode" != "rw" ]]; then
-                    if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping mount (invalid mode '$mode'): $line" >&2
-                    fi
-                    continue
-                fi
+                local host_path="$line"
 
                 # Expand ~ in host path
                 host_path="${host_path/#\~/$HOME}"
 
-                # Validate paths don't contain colons (would break Docker volume spec)
-                if [[ "$host_path" == *:* || "$container_path" == *:* ]]; then
+                # SECURITY: Skip symlinks (could point to sensitive directories)
+                if [[ -L "$host_path" ]]; then
                     if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping mount (colon in path): $host_path -> $container_path" >&2
+                        echo "[DEBUG] Skipping vault (symlink): $host_path" >&2
                     fi
                     continue
                 fi
 
-                # Only mount if host path exists
-                if [[ -e "$host_path" ]]; then
-                    docker_args+=(-v "${host_path}:${container_path}:${mode}")
+                # SECURITY: Skip paths with traversal
+                if [[ "$host_path" == *".."* ]]; then
                     if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Mounting custom volume: $host_path -> $container_path ($mode)" >&2
+                        echo "[DEBUG] Skipping vault (path traversal): $host_path" >&2
+                    fi
+                    continue
+                fi
+
+                # Derive vault name and container path
+                local vault_name
+                vault_name=$(basename "$host_path")
+                local container_path="/vault/$vault_name"
+
+                # Only mount if host path exists and is a directory
+                if [[ -d "$host_path" ]]; then
+                    docker_args+=(-v "${host_path}:${container_path}:ro")
+                    if [[ "$VERBOSE" == "true" ]]; then
+                        echo "[DEBUG] Mounting vault: $host_path -> $container_path (ro)" >&2
                     fi
                 else
                     if [[ "$VERBOSE" == "true" ]]; then
-                        echo "[DEBUG] Skipping mount (host path not found): $host_path" >&2
+                        echo "[DEBUG] Skipping vault (not a directory): $host_path" >&2
                     fi
                 fi
             fi
-        done <"$mounts_file"
+        done <"$vault_file"
     fi
 
     # Mount .env file if it exists in the project directory
