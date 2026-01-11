@@ -24,7 +24,7 @@ import subprocess
 import sys
 import unicodedata
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import List, Tuple
 
 # ---- Forbidden everywhere: Trojan Source style bidi controls ----
 BIDI_CODEPOINTS = {
