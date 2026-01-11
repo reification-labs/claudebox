@@ -112,9 +112,8 @@ echo "---------------------------------------------------------"
 
 # Test: main.sh should create ~/.claudebox with 0700 permissions
 test_claudebox_dir_permissions() {
-    # Check that mkdir uses mode 0700 or chmod 0700 is applied
-    grep -q 'mkdir.*-m.*700.*\.claudebox\|chmod.*700.*\.claudebox\|mkdir -p -m 0700.*\.claudebox' "$CLAUDEBOX_ROOT/main.sh" || \
-    grep -q 'mkdir -m 0700.*\$HOME/.claudebox\|mkdir.*0700.*\$HOME/.claudebox' "$CLAUDEBOX_ROOT/main.sh"
+    # Check that chmod 0700 is applied after mkdir (SC2174 compliant)
+    grep -q 'chmod 0700.*\.claudebox\|chmod.*700.*\$HOME/.claudebox' "$CLAUDEBOX_ROOT/main.sh"
 }
 run_test "main.sh creates ~/.claudebox with 0700 permissions" test_claudebox_dir_permissions
 

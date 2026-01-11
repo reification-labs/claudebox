@@ -433,7 +433,8 @@ main() {
     # Step 12: Fix permissions if needed
     # Security: Create ~/.claudebox with restrictive permissions (user-only)
     if [[ ! -d "$HOME/.claudebox" ]]; then
-        mkdir -p -m 0700 "$HOME/.claudebox"
+        mkdir -p "$HOME/.claudebox"
+        chmod 0700 "$HOME/.claudebox"
     fi
     if [[ ! -w "$HOME/.claudebox" ]]; then
         warn "Fixing .claudebox permissions..."
