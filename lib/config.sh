@@ -331,9 +331,9 @@ get_profile_elixir() {
     # To update: docker pull elixir:1.19-otp-27-slim && docker inspect --format='{{index .RepoDigests 0}}' elixir:1.19-otp-27-slim
     cat <<'EOF'
 # Copy Erlang/OTP 27 and Elixir 1.19 from official Docker image (pinned by digest)
-COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/lib/erlang /usr/local/lib/erlang
-COPY --from=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d /usr/local/lib/elixir /usr/local/lib/elixir
 ARG ELIXIR_IMAGE=elixir@sha256:9e7ad9e050968a18ebac0ca3beb0a75d6fec30a5f016da82d8f9f3c9b7365f5d
+COPY --from=${ELIXIR_IMAGE} /usr/local/lib/erlang /usr/local/lib/erlang
+COPY --from=${ELIXIR_IMAGE} /usr/local/lib/elixir /usr/local/lib/elixir
 COPY --from=${ELIXIR_IMAGE} /usr/local/bin/erl /usr/local/bin/
 COPY --from=${ELIXIR_IMAGE} /usr/local/bin/erlc /usr/local/bin/
 COPY --from=${ELIXIR_IMAGE} /usr/local/bin/elixir /usr/local/bin/
